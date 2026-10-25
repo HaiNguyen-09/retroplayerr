@@ -261,7 +261,7 @@ enum WheelTransportSymbol {
 
 struct WheelTransportGlyph: View {
     let symbol: WheelTransportSymbol
-    private let glyphColor = Color(hex: 0x4A4A4D)
+    var glyphColor: Color = Color(hex: 0x4A4A4D)
 
     var body: some View {
         Canvas { context, size in

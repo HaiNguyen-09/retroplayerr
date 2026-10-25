@@ -65,11 +65,22 @@ final class PlaybackEngine: ObservableObject {
         }
     }
 
-    /// Immediately starts playback of the specified file URL and media queue.
+    /// Starts playback of the specified file URL, or continues seamlessly if the same track is already active.
     func playMedia(url: URL, inQueue items: [MediaItem], startIndex: Int) {
         let clampedIndex = items.isEmpty ? 0 : min(max(0, startIndex), items.count - 1)
         self.queue = items
         self.queueIndex = clampedIndex
+
+        // If the user selects the same track that is already loaded, continue playing without resetting to 0:00
+        if let activeItem = currentItem,
+           activeItem.url.standardizedFileURL == url.standardizedFileURL,
+           player.currentItem != nil {
+            if playbackState != .playing {
+                play()
+            }
+            return
+        }
+
         startPlayback(for: url, metadataItem: items.indices.contains(clampedIndex) ? items[clampedIndex] : nil, autoPlay: true)
     }
 

@@ -21,9 +21,21 @@ final class PlayerViewModel: ObservableObject {
         }
     }
 
+    @AppStorage("chassisTheme") var chassisThemeRaw: String = ChassisTheme.light.rawValue {
+        didSet {
+            objectWillChange.send()
+            buildMenuStackPreservingSelection()
+        }
+    }
+
     var wheelSensitivity: WheelSensitivity {
         get { WheelSensitivity(rawValue: wheelSensitivityRaw) ?? .deg60 }
         set { wheelSensitivityRaw = newValue.rawValue }
+    }
+
+    var chassisTheme: ChassisTheme {
+        get { ChassisTheme(rawValue: chassisThemeRaw) ?? .light }
+        set { chassisThemeRaw = newValue.rawValue }
     }
 
     let playbackEngine = PlaybackEngine()
@@ -84,7 +96,6 @@ final class PlayerViewModel: ObservableObject {
             await reloadLibrary()
             guard !allMedia.isEmpty else { return }
 
-            // If user imported from Root Menu, automatically open the Documents list and highlight the imported file
             let rows = makeMediaRows(for: allMedia, emptyLabel: "No Files in Documents")
             var targetIndex = 0
             if let matchedIdx = allMedia.firstIndex(where: { importedNames.contains($0.url.lastPathComponent.lowercased()) }) {
@@ -125,13 +136,10 @@ final class PlayerViewModel: ObservableObject {
             }
 
         case .audioNowPlaying, .videoFullCanvas:
-            if isScrubbingInNowPlaying {
-                let delta = Double(direction) * 5.0
-                playbackEngine.seek(by: delta)
-                FeedbackManager.shared.triggerWheelTick()
-            } else {
-                FeedbackManager.shared.triggerWheelTick()
-            }
+            // Directly fast-forward (clockwise, direction > 0) or rewind (counter-clockwise, direction < 0)
+            let delta = Double(direction) * 5.0
+            playbackEngine.seek(by: delta)
+            FeedbackManager.shared.triggerWheelTick()
         }
     }
 
@@ -204,6 +212,12 @@ final class PlayerViewModel: ObservableObject {
         buildMenuStackPreservingSelection()
     }
 
+    func cycleThemeFromTopBar() {
+        guard !isHoldLocked else { return }
+        chassisTheme = chassisTheme.next()
+        FeedbackManager.shared.triggerButtonPress()
+    }
+
     // MARK: - Menu Tree Execution & Construction
 
     private func execute(action: MenuAction) {
@@ -233,6 +247,14 @@ final class PlayerViewModel: ObservableObject {
 
         case .importFiles:
             isPresentingDocumentPicker = true
+
+        case .cycleChassisTheme:
+            chassisTheme = chassisTheme.next()
+            buildMenuStackPreservingSelection()
+
+        case .setChassisTheme(let newTheme):
+            chassisTheme = newTheme
+            buildMenuStackPreservingSelection()
 
         case .cycleWheelSensitivity:
             wheelSensitivity = wheelSensitivity.next()
@@ -294,6 +316,8 @@ final class PlayerViewModel: ObservableObject {
             switch pageTitle {
             case "Settings":
                 menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeSettingsRows(), selectedIndex: selected)
+            case "Theme":
+                menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeThemeSubmenuRows(), selectedIndex: selected)
             case "Sensitivity":
                 menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeSensitivitySubmenuRows(), selectedIndex: selected)
             case "Music":
@@ -369,7 +393,7 @@ final class PlayerViewModel: ObservableObject {
                 showsChevron: true,
                 previewArtworkData: nil,
                 previewTitle: "Settings",
-                previewSubtitle: "Wheel: \(wheelSensitivity.displayName)",
+                previewSubtitle: "\(chassisTheme.displayName) • \(wheelSensitivity.shortLabel)",
                 action: .pushSubmenu(title: "Settings", items: makeSettingsRows())
             )
         ]
@@ -535,6 +559,21 @@ final class PlayerViewModel: ObservableObject {
         ]
     }
 
+    private func makeThemeSubmenuRows() -> [MenuRowItem] {
+        ChassisTheme.allCases.map { option in
+            let isCurrent = (option == chassisTheme)
+            return MenuRowItem(
+                id: "theme_\(option.rawValue)",
+                title: option.displayName,
+                valueText: isCurrent ? "✓" : nil,
+                showsChevron: false,
+                previewTitle: "Body Finish",
+                previewSubtitle: option.displayName,
+                action: .setChassisTheme(option)
+            )
+        }
+    }
+
     private func makeSensitivitySubmenuRows() -> [MenuRowItem] {
         WheelSensitivity.allCases.map { option in
             let isCurrent = (option == wheelSensitivity)
@@ -603,6 +642,23 @@ final class PlayerViewModel: ObservableObject {
         ]
 
         return [
+            MenuRowItem(
+                id: "settings_theme",
+                title: "Color Mode",
+                valueText: chassisTheme.displayName,
+                showsChevron: false,
+                previewTitle: "Player Finish",
+                previewSubtitle: "Light / Gray / Dark Gray",
+                action: .cycleChassisTheme
+            ),
+            MenuRowItem(
+                id: "settings_theme_menu",
+                title: "Theme Preset",
+                showsChevron: true,
+                previewTitle: "Player Finish",
+                previewSubtitle: chassisTheme.displayName,
+                action: .pushSubmenu(title: "Theme", items: makeThemeSubmenuRows())
+            ),
             MenuRowItem(
                 id: "settings_sensitivity",
                 title: "Sensitivity",

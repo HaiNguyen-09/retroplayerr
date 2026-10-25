@@ -4,30 +4,26 @@ struct ClassicPlayerRootView: View {
     @StateObject private var viewModel = PlayerViewModel()
 
     var body: some View {
+        let theme = viewModel.chassisTheme
+
         GeometryReader { geo in
             let halfHeight = geo.size.height / 2.0
 
             ZStack {
-                // Anodized silver metallic faceplate background
+                // Anodized metallic faceplate background (Light, Gray, or Dark Gray)
                 LinearGradient(
-                    colors: [
-                        Color(hex: 0xECEEF2),
-                        Color(hex: 0xDCDEE4),
-                        Color(hex: 0xC8CBD2)
-                    ],
+                    colors: theme.faceplateGradientColors,
                     startPoint: .top,
                     endPoint: .bottom
                 )
                 .ignoresSafeArea()
+                .animation(.easeInOut(duration: 0.2), value: theme)
 
                 // Subtle inner metallic chassis bevel border
                 RoundedRectangle(cornerRadius: 28)
                     .strokeBorder(
                         LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.75),
-                                Color(hex: 0x9CA1AA).opacity(0.55)
-                            ],
+                            colors: theme.chassisBorderGradientColors,
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
@@ -37,11 +33,12 @@ struct ClassicPlayerRootView: View {
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Upper half (50% of screen height): Top Hold Switch + Strict 4:3 LCD Container
+                    // Upper half (50% of screen height): Top Controls (Theme Finish + Hold Switch) + Strict 4:3 LCD Container
                     VStack(spacing: 10) {
                         HStack {
+                            themeModeQuickToggle(theme: theme)
                             Spacer()
-                            holdSwitchControl
+                            holdSwitchControl(theme: theme)
                         }
                         .padding(.horizontal, 26)
                         .padding(.top, 10)
@@ -100,8 +97,42 @@ struct ClassicPlayerRootView: View {
         }
     }
 
+    /// Quick 3-mode finish selector (Light / Gray / Dark Gray) on top-left bezel.
+    private func themeModeQuickToggle(theme: ChassisTheme) -> some View {
+        Button {
+            viewModel.cycleThemeFromTopBar()
+        } label: {
+            HStack(spacing: 5) {
+                HStack(spacing: 3) {
+                    Circle()
+                        .fill(Color(hex: 0xECEEF2))
+                        .frame(width: 7, height: 7)
+                        .overlay(Circle().stroke(Color.black.opacity(0.45), lineWidth: theme == .light ? 1.2 : 0.5))
+
+                    Circle()
+                        .fill(Color(hex: 0x8F949F))
+                        .frame(width: 7, height: 7)
+                        .overlay(Circle().stroke(Color.white.opacity(0.75), lineWidth: theme == .gray ? 1.2 : 0.4))
+
+                    Circle()
+                        .fill(Color(hex: 0x282A30))
+                        .frame(width: 7, height: 7)
+                        .overlay(Circle().stroke(Color.white.opacity(0.75), lineWidth: theme == .darkGray ? 1.2 : 0.4))
+                }
+
+                Text(theme.displayName.uppercased())
+                    .font(.system(size: 8.5, weight: .bold, design: .default))
+                    .tracking(0.5)
+                    .foregroundColor(theme.topBarTextColor)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Chassis Finish: \(theme.displayName)")
+    }
+
     /// Physical-style top Hold slider switch so the user can lock/unlock the Click Wheel at any time.
-    private var holdSwitchControl: some View {
+    private func holdSwitchControl(theme: ChassisTheme) -> some View {
         Button {
             viewModel.toggleHoldSwitch()
         } label: {
@@ -109,7 +140,7 @@ struct ClassicPlayerRootView: View {
                 Text("HOLD")
                     .font(.system(size: 8.5, weight: .bold, design: .default))
                     .tracking(0.6)
-                    .foregroundColor(Color(hex: 0x555860))
+                    .foregroundColor(theme.topBarTextColor)
 
                 ZStack(alignment: viewModel.isHoldLocked ? .trailing : .leading) {
                     Capsule()
@@ -117,7 +148,7 @@ struct ClassicPlayerRootView: View {
                         .frame(width: 26, height: 11)
                         .overlay(
                             Capsule()
-                                .stroke(Color(hex: 0x7A7F88), lineWidth: 0.8)
+                                .stroke(Color(hex: 0x555860), lineWidth: 0.8)
                         )
 
                     Capsule()

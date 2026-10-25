@@ -9,6 +9,7 @@ struct ClickWheelView: View {
     let onCenterPress: () -> Void
 
     @AppStorage("wheelSensitivity") private var wheelSensitivityRaw: String = WheelSensitivity.deg60.rawValue
+    @AppStorage("chassisTheme") private var chassisThemeRaw: String = ChassisTheme.light.rawValue
 
     private let wheelDiameter: CGFloat = 240.0
     private let wheelRadius: CGFloat = 120.0
@@ -18,6 +19,10 @@ struct ClickWheelView: View {
     /// Active degree threshold per step — defaults to 60.0° per step.
     private var stepThresholdDegrees: Double {
         (WheelSensitivity(rawValue: wheelSensitivityRaw) ?? .deg60).degreesPerStep
+    }
+
+    private var activeTheme: ChassisTheme {
+        ChassisTheme(rawValue: chassisThemeRaw) ?? .light
     }
 
     @State private var previousAngle: Double?
@@ -36,28 +41,24 @@ struct ClickWheelView: View {
 
     var body: some View {
         ZStack {
-            // Outer ring (Diameter 240pt, fill #F2F2F2, subtle convex radial drop shadow)
+            // Outer ring (Diameter 240pt, themed fill with subtle convex radial drop shadow)
             Circle()
                 .fill(
                     RadialGradient(
-                        gradient: Gradient(stops: [
-                            .init(color: Color(hex: 0xF7F7F7), location: 0.35),
-                            .init(color: Color(hex: 0xF2F2F2), location: 0.82),
-                            .init(color: Color(hex: 0xE2E3E6), location: 1.0)
-                        ]),
+                        gradient: Gradient(stops: activeTheme.wheelRingStops),
                         center: .center,
                         startRadius: centerButtonRadius,
                         endRadius: wheelRadius
                     )
                 )
                 .frame(width: wheelDiameter, height: wheelDiameter)
-                .shadow(color: Color.black.opacity(0.22), radius: 6, x: 0, y: 4)
-                .shadow(color: Color.white.opacity(0.65), radius: 1, x: 0, y: -1)
+                .shadow(color: Color.black.opacity(0.28), radius: 6, x: 0, y: 4)
+                .shadow(color: Color.white.opacity(activeTheme == .light ? 0.65 : 0.18), radius: 1, x: 0, y: -1)
                 .overlay(
                     Circle()
                         .stroke(
                             LinearGradient(
-                                colors: [Color(hex: 0xD0D2D6), Color(hex: 0xB8BBC2)],
+                                colors: activeTheme.wheelOuterStrokeColors,
                                 startPoint: .top,
                                 endPoint: .bottom
                             ),
@@ -65,38 +66,34 @@ struct ClickWheelView: View {
                         )
                 )
 
-            // Top: "MENU" text in dark charcoal Helvetica Bold
+            // Top: "MENU" text in Helvetica Bold
             Text("MENU")
                 .font(.custom("Helvetica-Bold", size: 11.5))
                 .tracking(0.8)
-                .foregroundColor(Color(hex: 0x3E3E42))
+                .foregroundColor(activeTheme.wheelLabelColor)
                 .scaleEffect(pressedZone == .menuTop ? 0.95 : 1.0)
                 .offset(y: -84)
 
             // Bottom: Play/Pause icon
-            WheelTransportGlyph(symbol: .playPause)
+            WheelTransportGlyph(symbol: .playPause, glyphColor: activeTheme.wheelLabelColor)
                 .scaleEffect(pressedZone == .playPauseBottom ? 0.94 : 1.0)
                 .offset(y: 84)
 
             // Left: Backward icon (track rewind/previous)
-            WheelTransportGlyph(symbol: .previous)
+            WheelTransportGlyph(symbol: .previous, glyphColor: activeTheme.wheelLabelColor)
                 .scaleEffect(pressedZone == .previousLeft ? 0.94 : 1.0)
                 .offset(x: -84)
 
             // Right: Forward icon (track fast-forward/skip)
-            WheelTransportGlyph(symbol: .next)
+            WheelTransportGlyph(symbol: .next, glyphColor: activeTheme.wheelLabelColor)
                 .scaleEffect(pressedZone == .nextRight ? 0.94 : 1.0)
                 .offset(x: 84)
 
-            // Center button (Diameter 88pt, concave metallic silver gradient)
+            // Center button (Diameter 88pt, concave metallic gradient matching active theme)
             Circle()
                 .fill(
                     LinearGradient(
-                        colors: [
-                            Color(hex: 0xC9CDD4),
-                            Color(hex: 0xDCE0E6),
-                            Color(hex: 0xEFF1F5)
-                        ],
+                        colors: activeTheme.centerButtonGradientColors,
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -106,7 +103,7 @@ struct ClickWheelView: View {
                     Circle()
                         .stroke(
                             LinearGradient(
-                                colors: [Color(hex: 0x9FA4AE), Color(hex: 0xCFD3DA)],
+                                colors: activeTheme.centerButtonStrokeColors,
                                 startPoint: .top,
                                 endPoint: .bottom
                             ),
