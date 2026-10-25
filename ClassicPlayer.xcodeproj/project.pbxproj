@@ -1,0 +1,330 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000012B00000100000001 /* ClassicPlayerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000012B00000100000001 /* ClassicPlayerApp.swift */; };
+		A10000022B00000100000001 /* MediaItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000022B00000100000001 /* MediaItem.swift */; };
+		A10000032B00000100000001 /* MenuNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000032B00000100000001 /* MenuNode.swift */; };
+		A10000042B00000100000001 /* FeedbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000042B00000100000001 /* FeedbackManager.swift */; };
+		A10000052B00000100000001 /* MediaLibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000052B00000100000001 /* MediaLibraryService.swift */; };
+		A10000062B00000100000001 /* PlaybackEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000062B00000100000001 /* PlaybackEngine.swift */; };
+		A10000072B00000100000001 /* PlayerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000072B00000100000001 /* PlayerViewModel.swift */; };
+		A10000082B00000100000001 /* RetroGlyphs.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000082B00000100000001 /* RetroGlyphs.swift */; };
+		A10000092B00000100000001 /* RetroStatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000092B00000100000001 /* RetroStatusBarView.swift */; };
+		A100000A2B00000100000001 /* SplitBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000A2B00000100000001 /* SplitBrowserView.swift */; };
+		A100000B2B00000100000001 /* NowPlayingLCDView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000B2B00000100000001 /* NowPlayingLCDView.swift */; };
+		A100000C2B00000100000001 /* VideoPlayerLCDView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000C2B00000100000001 /* VideoPlayerLCDView.swift */; };
+		A100000D2B00000100000001 /* LCDDisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000D2B00000100000001 /* LCDDisplayView.swift */; };
+		A100000E2B00000100000001 /* ClickWheelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000E2B00000100000001 /* ClickWheelView.swift */; };
+		A100000F2B00000100000001 /* ClassicPlayerRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000F2B00000100000001 /* ClassicPlayerRootView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000002B00000100000001 /* ClassicPlayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClassicPlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000012B00000100000001 /* ClassicPlayerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassicPlayerApp.swift; sourceTree = "<group>"; };
+		A20000022B00000100000001 /* MediaItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaItem.swift; sourceTree = "<group>"; };
+		A20000032B00000100000001 /* MenuNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuNode.swift; sourceTree = "<group>"; };
+		A20000042B00000100000001 /* FeedbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackManager.swift; sourceTree = "<group>"; };
+		A20000052B00000100000001 /* MediaLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaLibraryService.swift; sourceTree = "<group>"; };
+		A20000062B00000100000001 /* PlaybackEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackEngine.swift; sourceTree = "<group>"; };
+		A20000072B00000100000001 /* PlayerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViewModel.swift; sourceTree = "<group>"; };
+		A20000082B00000100000001 /* RetroGlyphs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetroGlyphs.swift; sourceTree = "<group>"; };
+		A20000092B00000100000001 /* RetroStatusBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetroStatusBarView.swift; sourceTree = "<group>"; };
+		A200000A2B00000100000001 /* SplitBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitBrowserView.swift; sourceTree = "<group>"; };
+		A200000B2B00000100000001 /* NowPlayingLCDView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingLCDView.swift; sourceTree = "<group>"; };
+		A200000C2B00000100000001 /* VideoPlayerLCDView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayerLCDView.swift; sourceTree = "<group>"; };
+		A200000D2B00000100000001 /* LCDDisplayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LCDDisplayView.swift; sourceTree = "<group>"; };
+		A200000E2B00000100000001 /* ClickWheelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClickWheelView.swift; sourceTree = "<group>"; };
+		A200000F2B00000100000001 /* ClassicPlayerRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassicPlayerRootView.swift; sourceTree = "<group>"; };
+		A20000102B00000100000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A30000012B00000100000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A40000012B00000100000001 = {
+			isa = PBXGroup;
+			children = (
+				A40000022B00000100000001 /* ClassicPlayer */,
+				A40000072B00000100000001 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A40000022B00000100000001 /* ClassicPlayer */ = {
+			isa = PBXGroup;
+			children = (
+				A20000102B00000100000001 /* Info.plist */,
+				A20000012B00000100000001 /* ClassicPlayerApp.swift */,
+				A40000032B00000100000001 /* Models */,
+				A40000042B00000100000001 /* Services */,
+				A40000052B00000100000001 /* ViewModels */,
+				A40000062B00000100000001 /* Views */,
+			);
+			path = ClassicPlayer;
+			sourceTree = "<group>";
+		};
+		A40000032B00000100000001 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A20000022B00000100000001 /* MediaItem.swift */,
+				A20000032B00000100000001 /* MenuNode.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A40000042B00000100000001 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A20000042B00000100000001 /* FeedbackManager.swift */,
+				A20000052B00000100000001 /* MediaLibraryService.swift */,
+				A20000062B00000100000001 /* PlaybackEngine.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		A40000052B00000100000001 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				A20000072B00000100000001 /* PlayerViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		A40000062B00000100000001 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A20000082B00000100000001 /* RetroGlyphs.swift */,
+				A20000092B00000100000001 /* RetroStatusBarView.swift */,
+				A200000A2B00000100000001 /* SplitBrowserView.swift */,
+				A200000B2B00000100000001 /* NowPlayingLCDView.swift */,
+				A200000C2B00000100000001 /* VideoPlayerLCDView.swift */,
+				A200000D2B00000100000001 /* LCDDisplayView.swift */,
+				A200000E2B00000100000001 /* ClickWheelView.swift */,
+				A200000F2B00000100000001 /* ClassicPlayerRootView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A40000072B00000100000001 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A20000002B00000100000001 /* ClassicPlayer.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000012B00000100000001 /* ClassicPlayer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A80000022B00000100000001 /* Build configuration list for PBXNativeTarget "ClassicPlayer" */;
+			buildPhases = (
+				A60000012B00000100000001 /* Sources */,
+				A30000012B00000100000001 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ClassicPlayer;
+			productName = ClassicPlayer;
+			productReference = A20000002B00000100000001 /* ClassicPlayer.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A70000012B00000100000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1540;
+				LastUpgradeCheck = 1540;
+				TargetAttributes = {
+					A50000012B00000100000001 = {
+						CreatedOnToolsVersion = 15.4;
+					};
+				};
+			};
+			buildConfigurationList = A80000012B00000100000001 /* Build configuration list for PBXProject "ClassicPlayer" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A40000012B00000100000001;
+			productRefGroup = A40000072B00000100000001 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A50000012B00000100000001 /* ClassicPlayer */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A60000012B00000100000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000012B00000100000001 /* ClassicPlayerApp.swift in Sources */,
+				A10000022B00000100000001 /* MediaItem.swift in Sources */,
+				A10000032B00000100000001 /* MenuNode.swift in Sources */,
+				A10000042B00000100000001 /* FeedbackManager.swift in Sources */,
+				A10000052B00000100000001 /* MediaLibraryService.swift in Sources */,
+				A10000062B00000100000001 /* PlaybackEngine.swift in Sources */,
+				A10000072B00000100000001 /* PlayerViewModel.swift in Sources */,
+				A10000082B00000100000001 /* RetroGlyphs.swift in Sources */,
+				A10000092B00000100000001 /* RetroStatusBarView.swift in Sources */,
+				A100000A2B00000100000001 /* SplitBrowserView.swift */,
+				A100000B2B00000100000001 /* NowPlayingLCDView.swift in Sources */,
+				A100000C2B00000100000001 /* VideoPlayerLCDView.swift in Sources */,
+				A100000D2B00000100000001 /* LCDDisplayView.swift in Sources */,
+				A100000E2B00000100000001 /* ClickWheelView.swift in Sources */,
+				A100000F2B00000100000001 /* ClassicPlayerRootView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A90000012B00000100000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = (
+					arm64,
+					arm64e,
+				);
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A90000022B00000100000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = (
+					arm64,
+					arm64e,
+				);
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A90000032B00000100000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ClassicPlayer/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.classicplayer.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A90000042B00000100000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ClassicPlayer/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.classicplayer.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A80000012B00000100000001 /* Build configuration list for PBXProject "ClassicPlayer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A90000012B00000100000001 /* Debug */,
+				A90000022B00000100000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A80000022B00000100000001 /* Build configuration list for PBXNativeTarget "ClassicPlayer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A90000032B00000100000001 /* Debug */,
+				A90000042B00000100000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A70000012B00000100000001 /* Project object */;
+}
