@@ -1,0 +1,32 @@
+name: RetroPlayer
+options:
+  bundleIdPrefix: com.localmedia
+  deploymentTarget:
+    iOS: 16.0
+targets:
+  RetroPlayer:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: RetroPlayer
+    info:
+      path: RetroPlayer/Info.plist
+      properties:
+        CFBundleIdentifier: com.localmedia.retroplayer
+        CFBundleName: RetroPlayer
+        CFBundleDisplayName: RetroPlayer
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        UIRequiresFullScreen: true
+        UIStatusBarHidden: true
+        UIViewControllerBasedStatusBarAppearance: false
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        UIBackgroundModes:
+          - audio
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.localmedia.retroplayer
+      CODE_SIGNING_ALLOWED: NO
+      CODE_SIGNING_REQUIRED: NO
+      CODE_SIGN_IDENTITY: ""
