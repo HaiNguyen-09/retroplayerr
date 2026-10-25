@@ -8,11 +8,17 @@ struct ClickWheelView: View {
     let onNextPress: () -> Void
     let onCenterPress: () -> Void
 
+    @AppStorage("wheelSensitivity") private var wheelSensitivityRaw: String = WheelSensitivity.medium.rawValue
+
     private let wheelDiameter: CGFloat = 240.0
     private let wheelRadius: CGFloat = 120.0
     private let centerButtonDiameter: CGFloat = 88.0
     private let centerButtonRadius: CGFloat = 44.0
-    private let stepThresholdDegrees: Double = 18.0
+
+    /// Active degree threshold per step (Low: 36.0°, Medium: 28.0°, High: 20.0°).
+    private var stepThresholdDegrees: Double {
+        (WheelSensitivity(rawValue: wheelSensitivityRaw) ?? .medium).degreesPerStep
+    }
 
     @State private var previousAngle: Double?
     @State private var accumulatedDegrees: Double = 0.0
@@ -58,7 +64,6 @@ struct ClickWheelView: View {
                         )
                 )
 
-            // Cardinal Button Targets around the ring (radial midpoint ~82pt from center)
             // Top: "MENU" text in dark charcoal Helvetica Bold
             Text("MENU")
                 .font(.custom("Helvetica-Bold", size: 11.5))
@@ -134,7 +139,7 @@ struct ClickWheelView: View {
             pressedZone = detectZone(dx: dx, dy: dy, radius: touchRadius)
         }
 
-        // Strict radius bounds check: reject drag gestures if touch radius < 44pt or > 120pt
+        // Reject drag gestures if touch radius is < 44pt (inside center button) or > 120pt (outside the wheel)
         guard touchRadius >= centerButtonRadius && touchRadius <= wheelRadius else {
             previousAngle = nil
             return
@@ -152,12 +157,21 @@ struct ClickWheelView: View {
                 delta += 360.0
             }
 
-            accumulatedDegrees += delta
+            // Ignore micro-jitter and reset accumulator on direction reversal for deliberate tactile control
+            if abs(delta) < 0.15 {
+                return
+            }
+            if (accumulatedDegrees > 0 && delta < -1.5) || (accumulatedDegrees < 0 && delta > 1.5) {
+                accumulatedDegrees = 0.0
+            }
 
-            // Trigger a menu navigation step every 18 degrees of rotation
-            while abs(accumulatedDegrees) >= stepThresholdDegrees {
+            accumulatedDegrees += delta
+            let threshold = stepThresholdDegrees
+
+            // Trigger a menu navigation step every `threshold` degrees (36° Low, 28° Medium, 20° High)
+            while abs(accumulatedDegrees) >= threshold {
                 let direction = accumulatedDegrees > 0 ? 1 : -1
-                accumulatedDegrees -= Double(direction) * stepThresholdDegrees
+                accumulatedDegrees -= Double(direction) * threshold
                 didTriggerRotation = true
                 pressedZone = nil
                 onRotateStep(direction)

@@ -7,11 +7,13 @@ actor MediaLibraryService {
 
     private let supportedExtensions: Set<String> = ["mp3", "m4a", "wav", "flac", "mp4", "mov"]
 
-    /// Scans the app's sandboxed Documents directory recursively for supported local audio and video files.
+    /// Scans the app's sandboxed Documents directory and all of its subfolders for supported local audio and video files.
     func scanDocumentsDirectory() async -> [MediaItem] {
         guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
             return []
         }
+
+        try? FileManager.default.createDirectory(at: documentsURL, withIntermediateDirectories: true)
 
         let fileURLs = discoverMediaURLs(in: documentsURL)
         var items: [MediaItem] = []
@@ -28,10 +30,78 @@ actor MediaLibraryService {
         }
     }
 
+    /// Copies user-selected media files (or folders of media files) from UIDocumentPickerViewController into the sandboxed Documents directory.
+    @discardableResult
+    func importFilesToDocuments(_ pickedURLs: [URL]) async -> Int {
+        guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return 0
+        }
+
+        try? FileManager.default.createDirectory(at: documentsURL, withIntermediateDirectories: true)
+        let fileManager = FileManager.default
+        var importedCount = 0
+
+        for externalURL in pickedURLs {
+            let hasScope = externalURL.startAccessingSecurityScopedResource()
+            defer {
+                if hasScope {
+                    externalURL.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            var isDir: ObjCBool = false
+            guard fileManager.fileExists(atPath: externalURL.path, isDirectory: &isDir) else {
+                continue
+            }
+
+            if isDir.boolValue {
+                let nestedMediaURLs = discoverMediaURLs(in: externalURL)
+                for mediaURL in nestedMediaURLs {
+                    if copyMediaFileIfNeeded(from: mediaURL, toDirectory: documentsURL) {
+                        importedCount += 1
+                    }
+                }
+            } else {
+                let ext = externalURL.pathExtension.lowercased()
+                if supportedExtensions.contains(ext) {
+                    if copyMediaFileIfNeeded(from: externalURL, toDirectory: documentsURL) {
+                        importedCount += 1
+                    }
+                }
+            }
+        }
+
+        return importedCount
+    }
+
+    private func copyMediaFileIfNeeded(from sourceURL: URL, toDirectory documentsURL: URL) -> Bool {
+        let fileManager = FileManager.default
+        let standardizedSource = sourceURL.standardizedFileURL
+        let standardizedDocs = documentsURL.standardizedFileURL
+
+        // If the file is already inside the sandboxed Documents folder or one of its subfolders, no copy needed
+        if standardizedSource.path.hasPrefix(standardizedDocs.path) {
+            return true
+        }
+
+        let destinationURL = documentsURL.appendingPathComponent(sourceURL.lastPathComponent)
+        if fileManager.fileExists(atPath: destinationURL.path) {
+            try? fileManager.removeItem(at: destinationURL)
+        }
+
+        do {
+            try fileManager.copyItem(at: sourceURL, to: destinationURL)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Recursively enumerates `rootURL` and all nested subfolders for supported audio/video files.
     private func discoverMediaURLs(in rootURL: URL) -> [URL] {
-        let keys: [URLResourceKey] = [.isRegularFileKey, .isDirectoryKey, .nameKey]
+        let keys: [URLResourceKey] = [.isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey, .nameKey]
         guard let enumerator = FileManager.default.enumerator(
-            at: rootURL,
+            at: rootURL.resolvingSymlinksInPath(),
             includingPropertiesForKeys: keys,
             options: [.skipsHiddenFiles, .skipsPackageDescendants]
         ) else {
@@ -39,7 +109,14 @@ actor MediaLibraryService {
         }
 
         var results: [URL] = []
-        for case let fileURL as URL in enumerator {
+        for case let rawURL as URL in enumerator {
+            let fileURL = rawURL.resolvingSymlinksInPath()
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: fileURL.path, isDirectory: &isDirectory),
+                  !isDirectory.boolValue else {
+                continue
+            }
+
             let ext = fileURL.pathExtension.lowercased()
             if supportedExtensions.contains(ext) {
                 results.append(fileURL)
@@ -54,13 +131,21 @@ actor MediaLibraryService {
         }
 
         let fallbackTitle = url.deletingPathExtension().lastPathComponent
-        let asset = AVURLAsset(url: url)
+        let asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: false])
 
         var title = fallbackTitle
         var artist = kind == .video ? "Video Clip" : "Unknown Artist"
-        var album = kind == .video ? "Videos" : "Unknown Album"
+        var album = kind == .video ? "Videos" : "Documents"
         var durationSeconds: TimeInterval = 0
         var artworkData: Data?
+
+        // Show subfolder name as Album if located in a subfolder of Documents
+        if let docsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let parentName = url.deletingLastPathComponent().lastPathComponent
+            if parentName != docsURL.lastPathComponent && !parentName.isEmpty {
+                album = parentName
+            }
+        }
 
         if let cmDuration = try? await asset.load(.duration) {
             let seconds = CMTimeGetSeconds(cmDuration)
@@ -74,15 +159,18 @@ actor MediaLibraryService {
                 guard let commonKey = item.commonKey else { continue }
                 switch commonKey {
                 case .commonKeyTitle:
-                    if let val = try? await item.load(.stringValue), !val.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if let val = try? await item.load(.stringValue),
+                       !val.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         title = val
                     }
                 case .commonKeyArtist, .commonKeyCreator, .commonKeyAuthor:
-                    if let val = try? await item.load(.stringValue), !val.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if let val = try? await item.load(.stringValue),
+                       !val.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         artist = val
                     }
                 case .commonKeyAlbumName:
-                    if let val = try? await item.load(.stringValue), !val.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if let val = try? await item.load(.stringValue),
+                       !val.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         album = val
                     }
                 case .commonKeyArtwork:
@@ -100,7 +188,7 @@ actor MediaLibraryService {
         }
 
         return MediaItem(
-            id: url.path,
+            id: url.standardizedFileURL.path,
             url: url,
             kind: kind,
             title: title,

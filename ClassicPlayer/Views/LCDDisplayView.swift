@@ -26,7 +26,6 @@ struct LCDDisplayView: View {
                         duration: viewModel.playbackEngine.duration,
                         isScrubbing: viewModel.isScrubbingInNowPlaying
                     )
-                    .transition(.opacity)
 
                 case .splitBrowser:
                     VStack(spacing: 0) {
@@ -36,13 +35,18 @@ struct LCDDisplayView: View {
                             isHoldLocked: viewModel.isHoldLocked,
                             batteryLevel: viewModel.batteryLevel
                         )
+                        .transaction { transaction in
+                            transaction.animation = nil
+                        }
+                        .zIndex(2)
 
                         SplitBrowserView(
                             page: viewModel.currentPage,
-                            previewImage: viewModel.previewImageForCurrentSelection
+                            previewImage: viewModel.previewImageForCurrentSelection,
+                            previewTitle: viewModel.previewTitleForCurrentSelection,
+                            previewSubtitle: viewModel.previewSubtitleForCurrentSelection
                         )
                     }
-                    .transition(.opacity)
 
                 case .audioNowPlaying:
                     VStack(spacing: 0) {
@@ -52,6 +56,9 @@ struct LCDDisplayView: View {
                             isHoldLocked: viewModel.isHoldLocked,
                             batteryLevel: viewModel.batteryLevel
                         )
+                        .transaction { transaction in
+                            transaction.animation = nil
+                        }
 
                         NowPlayingLCDView(
                             item: viewModel.playbackEngine.currentItem,
@@ -62,12 +69,10 @@ struct LCDDisplayView: View {
                             isScrubbing: viewModel.isScrubbingInNowPlaying
                         )
                     }
-                    .transition(.opacity)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 4.0))
             .overlay(
-                // Subtle inner LCD glass shadow & 1px dark frame
                 RoundedRectangle(cornerRadius: 4.0)
                     .stroke(Color(hex: 0x22252A), lineWidth: 1.0)
             )

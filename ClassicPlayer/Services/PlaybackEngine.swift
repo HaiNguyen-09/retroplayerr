@@ -38,13 +38,14 @@ final class PlaybackEngine: ObservableObject {
             try session.setCategory(.playback, mode: .moviePlayback, options: [])
             try session.setActive(true)
         } catch {
-            // Audio session configuration failed; non-fatal in simulator environments
+            // Non-fatal in simulator environments
         }
     }
 
     private func configurePlayer() {
         player.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
         player.actionAtItemEnd = .none
+        player.automaticallyWaitsToMinimizeStalling = false
 
         let interval = CMTime(seconds: 0.25, preferredTimescale: 600)
         timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
@@ -64,24 +65,27 @@ final class PlaybackEngine: ObservableObject {
         }
     }
 
+    /// Immediately starts playback of the specified file URL and media queue.
+    func playMedia(url: URL, inQueue items: [MediaItem], startIndex: Int) {
+        let clampedIndex = items.isEmpty ? 0 : min(max(0, startIndex), items.count - 1)
+        self.queue = items
+        self.queueIndex = clampedIndex
+        startPlayback(for: url, metadataItem: items.indices.contains(clampedIndex) ? items[clampedIndex] : nil, autoPlay: true)
+    }
+
     func loadQueue(_ items: [MediaItem], startIndex: Int = 0, autoPlay: Bool = true) {
         guard !items.isEmpty else { return }
         let clampedIndex = min(max(0, startIndex), items.count - 1)
         self.queue = items
         self.queueIndex = clampedIndex
-        loadCurrentQueueItem(autoPlay: autoPlay)
+        let targetItem = items[clampedIndex]
+        startPlayback(for: targetItem.url, metadataItem: targetItem, autoPlay: autoPlay)
     }
 
-    private func loadCurrentQueueItem(autoPlay: Bool) {
-        guard queue.indices.contains(queueIndex) else {
-            stop()
-            return
-        }
-
-        let media = queue[queueIndex]
-        currentItem = media
+    private func startPlayback(for url: URL, metadataItem: MediaItem?, autoPlay: Bool) {
+        currentItem = metadataItem
         currentTime = 0
-        duration = media.duration
+        duration = metadataItem?.duration ?? 0
 
         if let endObserver {
             NotificationCenter.default.removeObserver(endObserver)
@@ -90,7 +94,7 @@ final class PlaybackEngine: ObservableObject {
 
         configureAudioSession()
 
-        let asset = AVURLAsset(url: media.url)
+        let asset = AVURLAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
         player.replaceCurrentItem(with: playerItem)
 
@@ -105,7 +109,7 @@ final class PlaybackEngine: ObservableObject {
         }
 
         if autoPlay {
-            player.play()
+            player.playImmediately(atRate: 1.0)
             playbackState = .playing
         } else {
             player.pause()
@@ -122,8 +126,9 @@ final class PlaybackEngine: ObservableObject {
         case .paused:
             play()
         case .stopped:
-            if !queue.isEmpty {
-                loadCurrentQueueItem(autoPlay: true)
+            if queue.indices.contains(queueIndex) {
+                let targetItem = queue[queueIndex]
+                startPlayback(for: targetItem.url, metadataItem: targetItem, autoPlay: true)
             }
         }
     }
@@ -131,7 +136,7 @@ final class PlaybackEngine: ObservableObject {
     func play() {
         guard currentItem != nil else { return }
         configureAudioSession()
-        player.play()
+        player.playImmediately(atRate: 1.0)
         playbackState = .playing
         updateNowPlayingMetadata()
     }
@@ -156,10 +161,12 @@ final class PlaybackEngine: ObservableObject {
         guard !queue.isEmpty else { return }
         if queueIndex + 1 < queue.count {
             queueIndex += 1
-            loadCurrentQueueItem(autoPlay: true)
+            let item = queue[queueIndex]
+            startPlayback(for: item.url, metadataItem: item, autoPlay: true)
         } else {
             queueIndex = 0
-            loadCurrentQueueItem(autoPlay: false)
+            let item = queue[0]
+            startPlayback(for: item.url, metadataItem: item, autoPlay: false)
         }
     }
 
@@ -169,7 +176,8 @@ final class PlaybackEngine: ObservableObject {
             seek(to: 0)
         } else if queueIndex > 0 {
             queueIndex -= 1
-            loadCurrentQueueItem(autoPlay: playbackState == .playing)
+            let item = queue[queueIndex]
+            startPlayback(for: item.url, metadataItem: item, autoPlay: playbackState == .playing)
         } else {
             seek(to: 0)
         }
@@ -195,7 +203,8 @@ final class PlaybackEngine: ObservableObject {
         }
         if queueIndex + 1 < queue.count {
             queueIndex += 1
-            loadCurrentQueueItem(autoPlay: true)
+            let item = queue[queueIndex]
+            startPlayback(for: item.url, metadataItem: item, autoPlay: true)
         } else {
             player.pause()
             seek(to: 0)

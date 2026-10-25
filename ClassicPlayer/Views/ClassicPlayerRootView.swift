@@ -83,6 +83,17 @@ struct ClassicPlayerRootView: View {
         .ignoresSafeArea()
         .statusBar(hidden: true)
         .persistentSystemOverlays(.hidden)
+        .sheet(isPresented: $viewModel.isPresentingDocumentPicker) {
+            DocumentImporterSheet(
+                onPickURLs: { urls in
+                    viewModel.handleImportedDocuments(urls: urls)
+                },
+                onCancel: {
+                    viewModel.isPresentingDocumentPicker = false
+                }
+            )
+            .ignoresSafeArea()
+        }
     }
 
     /// Physical-style top Hold slider switch so the user can lock/unlock the Click Wheel at any time.

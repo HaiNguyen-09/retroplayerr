@@ -22,6 +22,7 @@
 		A100000D2B00000100000001 /* LCDDisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000D2B00000100000001 /* LCDDisplayView.swift */; };
 		A100000E2B00000100000001 /* ClickWheelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000E2B00000100000001 /* ClickWheelView.swift */; };
 		A100000F2B00000100000001 /* ClassicPlayerRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000F2B00000100000001 /* ClassicPlayerRootView.swift */; };
+		A10000112B00000100000001 /* DocumentImporterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000112B00000100000001 /* DocumentImporterView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,6 +43,7 @@
 		A200000E2B00000100000001 /* ClickWheelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClickWheelView.swift; sourceTree = "<group>"; };
 		A200000F2B00000100000001 /* ClassicPlayerRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassicPlayerRootView.swift; sourceTree = "<group>"; };
 		A20000102B00000100000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A20000112B00000100000001 /* DocumentImporterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImporterView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -114,6 +116,7 @@
 				A200000D2B00000100000001 /* LCDDisplayView.swift */,
 				A200000E2B00000100000001 /* ClickWheelView.swift */,
 				A200000F2B00000100000001 /* ClassicPlayerRootView.swift */,
+				A20000112B00000100000001 /* DocumentImporterView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -192,12 +195,13 @@
 				A10000072B00000100000001 /* PlayerViewModel.swift in Sources */,
 				A10000082B00000100000001 /* RetroGlyphs.swift in Sources */,
 				A10000092B00000100000001 /* RetroStatusBarView.swift in Sources */,
-				A100000A2B00000100000001 /* SplitBrowserView.swift */,
+				A100000A2B00000100000001 /* SplitBrowserView.swift in Sources */,
 				A100000B2B00000100000001 /* NowPlayingLCDView.swift in Sources */,
 				A100000C2B00000100000001 /* VideoPlayerLCDView.swift in Sources */,
 				A100000D2B00000100000001 /* LCDDisplayView.swift in Sources */,
 				A100000E2B00000100000001 /* ClickWheelView.swift in Sources */,
 				A100000F2B00000100000001 /* ClassicPlayerRootView.swift in Sources */,
+				A10000112B00000100000001 /* DocumentImporterView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

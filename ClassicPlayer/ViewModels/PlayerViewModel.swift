@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import SwiftUI
 import UIKit
 
 @MainActor
@@ -11,6 +12,19 @@ final class PlayerViewModel: ObservableObject {
     @Published var isClickerEnabled: Bool = true
     @Published var batteryLevel: Float = 0.85
     @Published var isScrubbingInNowPlaying: Bool = false
+    @Published var isPresentingDocumentPicker: Bool = false
+
+    @AppStorage("wheelSensitivity") var wheelSensitivityRaw: String = WheelSensitivity.medium.rawValue {
+        didSet {
+            objectWillChange.send()
+            buildMenuStackPreservingSelection()
+        }
+    }
+
+    var wheelSensitivity: WheelSensitivity {
+        get { WheelSensitivity(rawValue: wheelSensitivityRaw) ?? .medium }
+        set { wheelSensitivityRaw = newValue.rawValue }
+    }
 
     let playbackEngine = PlaybackEngine()
     private var cancellables = Set<AnyCancellable>()
@@ -43,13 +57,36 @@ final class PlayerViewModel: ObservableObject {
         return playbackEngine.currentItem?.artworkImage
     }
 
+    var previewTitleForCurrentSelection: String? {
+        if let row = currentPage.selectedRow {
+            return row.previewTitle ?? row.title
+        }
+        return playbackEngine.currentItem?.title
+    }
+
+    var previewSubtitleForCurrentSelection: String? {
+        if let row = currentPage.selectedRow {
+            return row.previewSubtitle ?? row.subtitle ?? row.valueText
+        }
+        return playbackEngine.currentItem?.artist
+    }
+
     func reloadLibrary() async {
         let discovered = await MediaLibraryService.shared.scanDocumentsDirectory()
         self.allMedia = discovered
         buildMenuStackPreservingSelection()
     }
 
-    // MARK: - Click Wheel Interactions
+    func handleImportedDocuments(urls: [URL]) {
+        isPresentingDocumentPicker = false
+        guard !urls.isEmpty else { return }
+        Task {
+            await MediaLibraryService.shared.importFilesToDocuments(urls)
+            await reloadLibrary()
+        }
+    }
+
+    // MARK: - Click Wheel Interactions (Strictly Read-Only Navigation)
 
     func handleWheelStep(direction: Int) {
         guard !isHoldLocked, direction != 0 else { return }
@@ -91,7 +128,9 @@ final class PlayerViewModel: ObservableObject {
         }
 
         if menuStack.count > 1 {
-            menuStack.removeLast()
+            withAnimation(.easeInOut(duration: 0.21)) {
+                _ = menuStack.removeLast()
+            }
         }
     }
 
@@ -115,7 +154,7 @@ final class PlayerViewModel: ObservableObject {
 
         if playbackEngine.currentItem == nil && !allMedia.isEmpty {
             let firstItem = allMedia[0]
-            playbackEngine.loadQueue(allMedia, startIndex: 0, autoPlay: true)
+            playbackEngine.playMedia(url: firstItem.url, inQueue: allMedia, startIndex: 0)
             transitionToActivePlayerScreen(for: firstItem)
         } else {
             playbackEngine.togglePlayPause()
@@ -146,30 +185,43 @@ final class PlayerViewModel: ObservableObject {
         buildMenuStackPreservingSelection()
     }
 
-    // MARK: - Menu Tree Construction
+    // MARK: - Menu Tree Execution & Construction
 
     private func execute(action: MenuAction) {
         switch action {
         case .pushSubmenu(let title, let items):
             let page = MenuPage(title: title, rows: items, selectedIndex: 0)
-            menuStack.append(page)
+            withAnimation(.easeInOut(duration: 0.21)) {
+                menuStack.append(page)
+            }
 
         case .playQueue(let items, let startIndex):
             guard items.indices.contains(startIndex) else { return }
             let selectedMedia = items[startIndex]
-            playbackEngine.loadQueue(items, startIndex: startIndex, autoPlay: true)
+            playbackEngine.playMedia(url: selectedMedia.url, inQueue: items, startIndex: startIndex)
             transitionToActivePlayerScreen(for: selectedMedia)
 
         case .shuffleAllAudio:
             let audioItems = allMedia.filter { $0.kind == .audio }.shuffled()
             let pool = audioItems.isEmpty ? allMedia.shuffled() : audioItems
             guard let first = pool.first else { return }
-            playbackEngine.loadQueue(pool, startIndex: 0, autoPlay: true)
+            playbackEngine.playMedia(url: first.url, inQueue: pool, startIndex: 0)
             transitionToActivePlayerScreen(for: first)
 
         case .openNowPlaying:
             guard let current = playbackEngine.currentItem else { return }
             transitionToActivePlayerScreen(for: current)
+
+        case .importFiles:
+            isPresentingDocumentPicker = true
+
+        case .cycleWheelSensitivity:
+            wheelSensitivity = wheelSensitivity.next()
+            buildMenuStackPreservingSelection()
+
+        case .setWheelSensitivity(let newSensitivity):
+            wheelSensitivity = newSensitivity
+            buildMenuStackPreservingSelection()
 
         case .toggleClicker:
             isClickerEnabled.toggle()
@@ -212,15 +264,30 @@ final class PlayerViewModel: ObservableObject {
             selectedIndex: previousRootSelection
         )
 
-        // Refresh Settings page if currently open
-        if menuStack.count == 2 && menuStack[1].title == "Settings" {
-            let selected = menuStack[1].selectedIndex
-            menuStack[1] = MenuPage(
-                id: menuStack[1].id,
-                title: "Settings",
-                rows: makeSettingsRows(),
-                selectedIndex: selected
-            )
+        // Refresh open submenus so imported files or updated Settings reflect immediately
+        for idx in 1..<menuStack.count {
+            let pageTitle = menuStack[idx].title
+            let pageId = menuStack[idx].id
+            let selected = menuStack[idx].selectedIndex
+            let audioItems = allMedia.filter { $0.kind == .audio }
+            let videoItems = allMedia.filter { $0.kind == .video }
+
+            switch pageTitle {
+            case "Settings":
+                menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeSettingsRows(), selectedIndex: selected)
+            case "Sensitivity":
+                menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeSensitivitySubmenuRows(), selectedIndex: selected)
+            case "Music":
+                menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeMusicMenuRows(audioItems: audioItems), selectedIndex: selected)
+            case "All Songs":
+                menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeMediaRows(for: audioItems, emptyLabel: "No Audio Files"), selectedIndex: selected)
+            case "Videos":
+                menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeVideoMenuRows(videoItems: videoItems), selectedIndex: selected)
+            case "Documents":
+                menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeMediaRows(for: allMedia, emptyLabel: "No Files in Documents"), selectedIndex: selected)
+            default:
+                break
+            }
         }
     }
 
@@ -237,6 +304,8 @@ final class PlayerViewModel: ObservableObject {
                 title: "Music",
                 showsChevron: true,
                 previewArtworkData: firstAudioArtwork,
+                previewTitle: "Music",
+                previewSubtitle: "\(audioItems.count) Songs",
                 action: .pushSubmenu(title: "Music", items: makeMusicMenuRows(audioItems: audioItems))
             ),
             MenuRowItem(
@@ -244,6 +313,8 @@ final class PlayerViewModel: ObservableObject {
                 title: "Videos",
                 showsChevron: true,
                 previewArtworkData: firstVideoArtwork,
+                previewTitle: "Videos",
+                previewSubtitle: "\(videoItems.count) Videos",
                 action: .pushSubmenu(title: "Videos", items: makeVideoMenuRows(videoItems: videoItems))
             ),
             MenuRowItem(
@@ -251,13 +322,26 @@ final class PlayerViewModel: ObservableObject {
                 title: "Documents",
                 showsChevron: true,
                 previewArtworkData: firstAnyArtwork,
+                previewTitle: "Documents",
+                previewSubtitle: "\(allMedia.count) Local Files",
                 action: .pushSubmenu(title: "Documents", items: makeMediaRows(for: allMedia, emptyLabel: "No Files in Documents"))
+            ),
+            MenuRowItem(
+                id: "root_import",
+                title: "Import Files",
+                showsChevron: true,
+                previewArtworkData: nil,
+                previewTitle: "Import Files",
+                previewSubtitle: "Add from iOS Files",
+                action: .importFiles
             ),
             MenuRowItem(
                 id: "root_shuffle",
                 title: "Shuffle Songs",
                 showsChevron: false,
                 previewArtworkData: firstAudioArtwork ?? firstAnyArtwork,
+                previewTitle: "Shuffle Songs",
+                previewSubtitle: "\(audioItems.count) Tracks",
                 action: .shuffleAllAudio
             ),
             MenuRowItem(
@@ -265,6 +349,8 @@ final class PlayerViewModel: ObservableObject {
                 title: "Settings",
                 showsChevron: true,
                 previewArtworkData: nil,
+                previewTitle: "Settings",
+                previewSubtitle: "Wheel: \(wheelSensitivity.displayName)",
                 action: .pushSubmenu(title: "Settings", items: makeSettingsRows())
             )
         ]
@@ -276,6 +362,8 @@ final class PlayerViewModel: ObservableObject {
                     title: "Now Playing",
                     showsChevron: true,
                     previewArtworkData: current.artworkData,
+                    previewTitle: current.title,
+                    previewSubtitle: current.artist,
                     action: .openNowPlaying
                 )
             )
@@ -297,6 +385,8 @@ final class PlayerViewModel: ObservableObject {
                 title: artist,
                 showsChevron: true,
                 previewArtworkData: art,
+                previewTitle: artist,
+                previewSubtitle: "\(tracks.count) Songs",
                 action: .pushSubmenu(title: artist, items: makeMediaRows(for: tracks, emptyLabel: "No Songs"))
             )
         }
@@ -311,6 +401,8 @@ final class PlayerViewModel: ObservableObject {
                 title: album,
                 showsChevron: true,
                 previewArtworkData: art,
+                previewTitle: album,
+                previewSubtitle: "\(tracks.count) Songs",
                 action: .pushSubmenu(title: album, items: makeMediaRows(for: tracks, emptyLabel: "No Songs"))
             )
         }
@@ -321,9 +413,11 @@ final class PlayerViewModel: ObservableObject {
                 title: "All Songs",
                 showsChevron: true,
                 previewArtworkData: firstArt,
+                previewTitle: "All Songs",
+                previewSubtitle: "\(audioItems.count) Songs",
                 action: .pushSubmenu(
                     title: "All Songs",
-                    items: makeMediaRows(for: audioItems, emptyLabel: "Add Audio to Documents")
+                    items: makeMediaRows(for: audioItems, emptyLabel: "No Audio Files")
                 )
             ),
             MenuRowItem(
@@ -331,6 +425,8 @@ final class PlayerViewModel: ObservableObject {
                 title: "Artists",
                 showsChevron: true,
                 previewArtworkData: firstArt,
+                previewTitle: "Artists",
+                previewSubtitle: "\(artistRows.count) Artists",
                 action: .pushSubmenu(
                     title: "Artists",
                     items: artistRows.isEmpty ? makeEmptyPlaceholderRows("No Artists Found") : artistRows
@@ -341,16 +437,41 @@ final class PlayerViewModel: ObservableObject {
                 title: "Albums",
                 showsChevron: true,
                 previewArtworkData: firstArt,
+                previewTitle: "Albums",
+                previewSubtitle: "\(albumRows.count) Albums",
                 action: .pushSubmenu(
                     title: "Albums",
                     items: albumRows.isEmpty ? makeEmptyPlaceholderRows("No Albums Found") : albumRows
                 )
+            ),
+            MenuRowItem(
+                id: "music_import",
+                title: "Import Files",
+                showsChevron: true,
+                previewArtworkData: nil,
+                previewTitle: "Import Audio",
+                previewSubtitle: ".mp3, .m4a, .wav, .flac",
+                action: .importFiles
             )
         ]
     }
 
     private func makeVideoMenuRows(videoItems: [MediaItem]) -> [MenuRowItem] {
-        makeMediaRows(for: videoItems, emptyLabel: "Add .mp4/.mov to Documents")
+        var rows = makeMediaRows(for: videoItems, emptyLabel: "No Video Files")
+        if !videoItems.isEmpty {
+            rows.append(
+                MenuRowItem(
+                    id: "video_import",
+                    title: "Import Files",
+                    showsChevron: true,
+                    previewArtworkData: nil,
+                    previewTitle: "Import Videos",
+                    previewSubtitle: ".mp4, .mov",
+                    action: .importFiles
+                )
+            )
+        }
+        return rows
     }
 
     private func makeMediaRows(for items: [MediaItem], emptyLabel: String) -> [MenuRowItem] {
@@ -365,6 +486,8 @@ final class PlayerViewModel: ObservableObject {
                 subtitle: item.artist,
                 showsChevron: true,
                 previewArtworkData: item.artworkData,
+                previewTitle: item.title,
+                previewSubtitle: item.artist,
                 action: .playQueue(items: items, startIndex: index)
             )
         }
@@ -373,20 +496,39 @@ final class PlayerViewModel: ObservableObject {
     private func makeEmptyPlaceholderRows(_ message: String) -> [MenuRowItem] {
         [
             MenuRowItem(
-                id: "empty_\(message)",
-                title: message,
-                showsChevron: false,
+                id: "empty_import_\(message)",
+                title: "Import Files",
+                showsChevron: true,
                 previewArtworkData: nil,
-                action: .rescanLibrary
+                previewTitle: message,
+                previewSubtitle: "Select from Files app",
+                action: .importFiles
             ),
             MenuRowItem(
-                id: "rescan_prompt",
+                id: "rescan_prompt_\(message)",
                 title: "Rescan Documents",
                 showsChevron: false,
                 previewArtworkData: nil,
+                previewTitle: "Rescan Documents",
+                previewSubtitle: "Refresh Sandbox",
                 action: .rescanLibrary
             )
         ]
+    }
+
+    private func makeSensitivitySubmenuRows() -> [MenuRowItem] {
+        WheelSensitivity.allCases.map { option in
+            let isCurrent = (option == wheelSensitivity)
+            return MenuRowItem(
+                id: "sens_\(option.rawValue)",
+                title: option.displayName,
+                valueText: isCurrent ? "✓" : nil,
+                showsChevron: false,
+                previewTitle: "Wheel Sensitivity",
+                previewSubtitle: option.displayName,
+                action: .setWheelSensitivity(option)
+            )
+        }
     }
 
     private func makeSettingsRows() -> [MenuRowItem] {
@@ -399,6 +541,8 @@ final class PlayerViewModel: ObservableObject {
                 title: "ClassicPlayer",
                 valueText: "1.0",
                 showsChevron: false,
+                previewTitle: "ClassicPlayer",
+                previewSubtitle: "Version 1.0",
                 action: .rescanLibrary
             ),
             MenuRowItem(
@@ -406,6 +550,8 @@ final class PlayerViewModel: ObservableObject {
                 title: "Songs",
                 valueText: "\(audioCount)",
                 showsChevron: false,
+                previewTitle: "Songs",
+                previewSubtitle: "\(audioCount) Audio Tracks",
                 action: .rescanLibrary
             ),
             MenuRowItem(
@@ -413,6 +559,8 @@ final class PlayerViewModel: ObservableObject {
                 title: "Videos",
                 valueText: "\(videoCount)",
                 showsChevron: false,
+                previewTitle: "Videos",
+                previewSubtitle: "\(videoCount) Video Clips",
                 action: .rescanLibrary
             ),
             MenuRowItem(
@@ -420,6 +568,8 @@ final class PlayerViewModel: ObservableObject {
                 title: "Source",
                 valueText: "Documents",
                 showsChevron: false,
+                previewTitle: "Local Storage",
+                previewSubtitle: "Sandbox Documents",
                 action: .rescanLibrary
             ),
             MenuRowItem(
@@ -427,22 +577,37 @@ final class PlayerViewModel: ObservableObject {
                 title: "Network",
                 valueText: "Offline",
                 showsChevron: false,
+                previewTitle: "Zero Network",
+                previewSubtitle: "100% Local Sandbox",
                 action: .rescanLibrary
             )
         ]
 
         return [
             MenuRowItem(
-                id: "settings_about",
-                title: "About",
+                id: "settings_sensitivity",
+                title: "Sensitivity",
+                valueText: wheelSensitivity.shortLabel,
+                showsChevron: false,
+                previewTitle: "Wheel Sensitivity",
+                previewSubtitle: wheelSensitivity.displayName,
+                action: .cycleWheelSensitivity
+            ),
+            MenuRowItem(
+                id: "settings_sensitivity_menu",
+                title: "Sensitivity Preset",
                 showsChevron: true,
-                action: .pushSubmenu(title: "About", items: aboutRows)
+                previewTitle: "Wheel Presets",
+                previewSubtitle: "Low 36° / Med 28° / High 20°",
+                action: .pushSubmenu(title: "Sensitivity", items: makeSensitivitySubmenuRows())
             ),
             MenuRowItem(
                 id: "settings_clicker",
                 title: "Clicker",
                 valueText: isClickerEnabled ? "On" : "Off",
                 showsChevron: false,
+                previewTitle: "Wheel Clicker",
+                previewSubtitle: isClickerEnabled ? "Sound 1104 Enabled" : "Muted",
                 action: .toggleClicker
             ),
             MenuRowItem(
@@ -450,13 +615,33 @@ final class PlayerViewModel: ObservableObject {
                 title: "Hold Lock",
                 valueText: isHoldLocked ? "Locked" : "Off",
                 showsChevron: false,
+                previewTitle: "Hold Switch",
+                previewSubtitle: isHoldLocked ? "Wheel Locked" : "Unlocked",
                 action: .toggleHoldLock
+            ),
+            MenuRowItem(
+                id: "settings_import",
+                title: "Import Files",
+                showsChevron: true,
+                previewTitle: "Import Media",
+                previewSubtitle: "From iOS Files App",
+                action: .importFiles
             ),
             MenuRowItem(
                 id: "settings_rescan",
                 title: "Rescan Documents",
                 showsChevron: false,
+                previewTitle: "Rescan Library",
+                previewSubtitle: "Documents & Subfolders",
                 action: .rescanLibrary
+            ),
+            MenuRowItem(
+                id: "settings_about",
+                title: "About",
+                showsChevron: true,
+                previewTitle: "About Player",
+                previewSubtitle: "\(audioCount) Songs, \(videoCount) Videos",
+                action: .pushSubmenu(title: "About", items: aboutRows)
             )
         ]
     }
@@ -507,7 +692,6 @@ final class PlayerViewModel: ObservableObject {
 
     private func updateBatteryLevel() {
         let level = UIDevice.current.batteryLevel
-        // On Simulator, UIDevice.current.batteryLevel is -1.0; default to 0.85 for realistic retro bar display
         if level >= 0.0 && level <= 1.0 {
             batteryLevel = level
         } else {
@@ -520,7 +704,6 @@ final class PlayerViewModel: ObservableObject {
             return
         }
 
-        // Ensure the Documents directory exists so it appears in the iOS Files app immediately
         try? FileManager.default.createDirectory(at: docsURL, withIntermediateDirectories: true)
 
         directoryFileDescriptor = open(docsURL.path, O_EVTONLY)

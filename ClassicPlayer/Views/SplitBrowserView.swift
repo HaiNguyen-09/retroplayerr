@@ -4,6 +4,8 @@ import UIKit
 struct SplitBrowserView: View {
     let page: MenuPage
     let previewImage: UIImage?
+    let previewTitle: String?
+    let previewSubtitle: String?
 
     private var onePixel: CGFloat {
         1.0 / UIScreen.main.scale
@@ -14,44 +16,60 @@ struct SplitBrowserView: View {
             let halfWidth = geo.size.width / 2.0
 
             HStack(spacing: 0) {
-                // Left 50%: Hierarchical Menu List
-                leftMenuListPane
-                    .frame(width: halfWidth, height: geo.size.height)
+                // Left 50%: Strictly Clipped Menu Navigation Column with Asymmetric Slide Transition
+                ZStack {
+                    Color.white
 
-                // 1px Center Split Divider
+                    leftMenuListPane(for: page)
+                        .id(page.id)
+                        .transition(
+                            .asymmetric(
+                                insertion: .move(edge: .trailing),
+                                removal: .move(edge: .leading)
+                            )
+                        )
+                }
+                .frame(width: halfWidth, height: geo.size.height)
+                .clipped()
+                .animation(.easeInOut(duration: 0.21), value: page.id)
+                .zIndex(0)
+
+                // 1px Center Split Divider (Stationary)
                 Rectangle()
                     .fill(Color(hex: 0xC2C4C8))
                     .frame(width: onePixel, height: geo.size.height)
+                    .zIndex(1)
 
-                // Right 50%: Artwork / Video Thumbnail Preview + Horizontal Reflection
+                // Right 50%: Anchored Static Preview Pane (Artwork + Reflection + Metadata)
                 rightPreviewPane(width: halfWidth - onePixel, height: geo.size.height)
                     .frame(width: halfWidth - onePixel, height: geo.size.height)
+                    .clipped()
+                    .transaction { transaction in
+                        transaction.animation = nil
+                    }
+                    .zIndex(1)
             }
             .background(Color.white)
         }
     }
 
-    private var leftMenuListPane: some View {
+    private func leftMenuListPane(for activePage: MenuPage) -> some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 0) {
-                    ForEach(Array(page.rows.enumerated()), id: \.element.id) { index, row in
-                        let isSelected = (index == page.selectedIndex)
+                    ForEach(Array(activePage.rows.enumerated()), id: \.element.id) { index, row in
+                        let isSelected = (index == activePage.selectedIndex)
                         menuRowView(row: row, isSelected: isSelected)
                             .id(row.id)
                     }
                 }
             }
-            .onChange(of: page.selectedIndex) { _ in
-                if let selectedRow = page.selectedRow {
-                    withAnimation(.linear(duration: 0.06)) {
+            .background(Color.white)
+            .onChange(of: activePage.selectedIndex) { _ in
+                if let selectedRow = activePage.selectedRow {
+                    withAnimation(.linear(duration: 0.05)) {
                         proxy.scrollTo(selectedRow.id, anchor: nil)
                     }
-                }
-            }
-            .onChange(of: page.id) { _ in
-                if let selectedRow = page.selectedRow {
-                    proxy.scrollTo(selectedRow.id, anchor: .top)
                 }
             }
         }
@@ -89,7 +107,6 @@ struct SplitBrowserView: View {
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    // Subtle top glossy highlight strip
                     VStack(spacing: 0) {
                         LinearGradient(
                             colors: [Color.white.opacity(0.28), Color.white.opacity(0.0)],
@@ -107,8 +124,8 @@ struct SplitBrowserView: View {
     }
 
     private func rightPreviewPane(width: CGFloat, height: CGFloat) -> some View {
-        let artworkSide = min(width * 0.78, height * 0.64)
-        let reflectionHeight = artworkSide * 0.34
+        let artworkSide = min(width * 0.72, height * 0.54)
+        let reflectionHeight = artworkSide * 0.26
 
         return ZStack {
             LinearGradient(
@@ -118,7 +135,7 @@ struct SplitBrowserView: View {
             )
 
             VStack(spacing: 1) {
-                Spacer(minLength: 8)
+                Spacer(minLength: 6)
 
                 // Primary square artwork or vintage monochrome disc engraving
                 artworkCard(side: artworkSide)
@@ -134,8 +151,8 @@ struct SplitBrowserView: View {
                     .mask(
                         LinearGradient(
                             stops: [
-                                .init(color: .black.opacity(0.32), location: 0.0),
-                                .init(color: .black.opacity(0.10), location: 0.55),
+                                .init(color: .black.opacity(0.30), location: 0.0),
+                                .init(color: .black.opacity(0.08), location: 0.55),
                                 .init(color: .clear, location: 1.0)
                             ],
                             startPoint: .top,
@@ -143,7 +160,27 @@ struct SplitBrowserView: View {
                         )
                     )
 
-                Spacer(minLength: 4)
+                Spacer(minLength: 2)
+
+                // Highlighted item metadata preview (read-only)
+                VStack(spacing: 1) {
+                    if let previewTitle, !previewTitle.isEmpty {
+                        Text(previewTitle)
+                            .font(.system(size: 10.5, weight: .bold, design: .default))
+                            .foregroundColor(Color(hex: 0x1E2024))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                    if let previewSubtitle, !previewSubtitle.isEmpty {
+                        Text(previewSubtitle)
+                            .font(.system(size: 9.5, weight: .medium, design: .default))
+                            .foregroundColor(Color(hex: 0x5A5F68))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                }
+                .padding(.horizontal, 6)
+                .padding(.bottom, 6)
             }
         }
     }
