@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 import UIKit
 
@@ -132,7 +133,7 @@ struct CoverFlowView: View {
                 // Back of the jewel case (pre-rotated 180° around Y so when the container flips 180°, text reads forward)
                 jewelCaseTracklistBack(album: album)
                     .frame(width: 146, height: 118)
-                    .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
+                    .rotation3DEffect(.degrees(180), axis: (x: 0.0, y: 1.0, z: 0.0))
             } else {
                 // Front Album Cover + Unconstrained Downward Mirrored Reflection into Pure Black
                 frontArtworkFace(album: album, dimOpacity: sideDimOpacity)
