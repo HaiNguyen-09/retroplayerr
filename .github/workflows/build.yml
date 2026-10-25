@@ -1,0 +1,42 @@
+name: Build Unsigned IPA
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build Archive
+        run: |
+          xcodebuild -project RetroPlayer.xcodeproj \
+            -scheme RetroPlayer \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath build/RetroPlayer.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            archive
+
+      - name: Package into IPA
+        run: |
+          mkdir -p Payload
+          cp -r build/RetroPlayer.xcarchive/Products/Applications/*.app Payload/
+          zip -r RetroPlayer.ipa Payload
+          rm -rf Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RetroPlayer-IPA
+          path: RetroPlayer.ipa
