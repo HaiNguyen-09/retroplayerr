@@ -9,9 +9,10 @@ extension Color {
     }
 }
 
-/// Solid black polygon indicator for the left side of the 20pt Retro Status Bar.
+/// Cyan/sky blue play triangle (#0284C7) indicator for the right side of the 6th-Gen Retro Status Bar.
 struct RetroStatusPlayIndicator: View {
     let state: PlaybackState
+    private let cyanBlue = Color(hex: 0x0284C7)
 
     var body: some View {
         Canvas { context, size in
@@ -19,35 +20,26 @@ struct RetroStatusPlayIndicator: View {
             let h = size.height
 
             switch state {
-            case .playing:
+            case .playing, .stopped:
                 var triangle = Path()
-                triangle.move(to: CGPoint(x: 1, y: 1.5))
-                triangle.addLine(to: CGPoint(x: w - 1, y: h / 2.0))
-                triangle.addLine(to: CGPoint(x: 1, y: h - 1.5))
+                triangle.move(to: CGPoint(x: 1.0, y: 1.0))
+                triangle.addLine(to: CGPoint(x: w - 0.5, y: h / 2.0))
+                triangle.addLine(to: CGPoint(x: 1.0, y: h - 1.0))
                 triangle.closeSubpath()
-                context.fill(triangle, with: .color(.black))
+                context.fill(triangle, with: .color(cyanBlue))
 
             case .paused:
                 let barWidth: CGFloat = 2.4
-                let gap: CGFloat = 2.2
+                let gap: CGFloat = 2.0
                 let totalW = barWidth * 2 + gap
                 let startX = (w - totalW) / 2.0
-                let leftBar = CGRect(x: startX, y: 1.5, width: barWidth, height: h - 3.0)
-                let rightBar = CGRect(x: startX + barWidth + gap, y: 1.5, width: barWidth, height: h - 3.0)
-                context.fill(Path(leftBar), with: .color(.black))
-                context.fill(Path(rightBar), with: .color(.black))
-
-            case .stopped:
-                // Subtle paused/idle play polygon outline or tiny stop square
-                var triangle = Path()
-                triangle.move(to: CGPoint(x: 1.5, y: 2.0))
-                triangle.addLine(to: CGPoint(x: w - 1.5, y: h / 2.0))
-                triangle.addLine(to: CGPoint(x: 1.5, y: h - 2.0))
-                triangle.closeSubpath()
-                context.stroke(triangle, with: .color(.black.opacity(0.45)), lineWidth: 1.0)
+                let leftBar = CGRect(x: startX, y: 1.2, width: barWidth, height: h - 2.4)
+                let rightBar = CGRect(x: startX + barWidth + gap, y: 1.2, width: barWidth, height: h - 2.4)
+                context.fill(Path(leftBar), with: .color(cyanBlue))
+                context.fill(Path(rightBar), with: .color(cyanBlue))
             }
         }
-        .frame(width: 10, height: 10)
+        .frame(width: 9, height: 9)
     }
 }
 
@@ -60,7 +52,7 @@ struct RetroLockGlyph: View {
 
             // Padlock body
             let bodyRect = CGRect(x: 1.0, y: h * 0.45, width: w - 2.0, height: h * 0.5)
-            context.fill(Path(roundedRect: bodyRect, cornerRadius: 1.0), with: .color(.black))
+            context.fill(Path(roundedRect: bodyRect, cornerRadius: 1.0), with: .color(Color(hex: 0x333333)))
 
             // Shackle arch
             var arch = Path()
@@ -79,56 +71,116 @@ struct RetroLockGlyph: View {
                 clockwise: false
             )
             arch.addLine(to: CGPoint(x: archRight, y: h * 0.46))
-            context.stroke(arch, with: .color(.black), lineWidth: 1.3)
+            context.stroke(arch, with: .color(Color(hex: 0x333333)), lineWidth: 1.3)
         }
         .frame(width: 9, height: 11)
     }
 }
 
-/// Custom retro battery glyph: hollow black pill with internal segmented battery charge bar.
+/// Glossy 6th-Gen Battery Capsule: 3D-styled pill (width: 22pt, height: 10pt) with glossy chrome border,
+/// green gradient fill (#22C55E to #15803D), and subtle top white specular reflection streak.
 struct RetroBatteryGlyph: View {
     let level: Float // 0.0 ... 1.0
-    private let segmentCount = 4
 
     var body: some View {
         Canvas { context, size in
             let nubWidth: CGFloat = 2.0
-            let bodyWidth = size.width - nubWidth - 1.0
+            let bodyWidth = size.width - nubWidth - 0.5
             let bodyHeight = size.height
             let bodyRect = CGRect(x: 0.5, y: 0.5, width: bodyWidth - 1.0, height: bodyHeight - 1.0)
+            let pillCornerRadius: CGFloat = 2.6
 
-            // Hollow black pill outline
-            let pillPath = Path(roundedRect: bodyRect, cornerRadius: 2.0)
-            context.stroke(pillPath, with: .color(.black), lineWidth: 1.0)
+            // Recessed inner metallic background
+            let pillPath = Path(roundedRect: bodyRect, cornerRadius: pillCornerRadius)
+            context.fill(
+                pillPath,
+                with: .linearGradient(
+                    Gradient(colors: [Color(hex: 0xD1D5DB), Color(hex: 0xF3F4F6)]),
+                    startPoint: CGPoint(x: 0, y: 0),
+                    endPoint: CGPoint(x: 0, y: bodyHeight)
+                )
+            )
 
-            // Positive terminal nub on right
-            let nubHeight: CGFloat = 4.0
+            // Green gradient fill (#22C55E to #15803D)
+            let clamped = min(max(CGFloat(level), 0.15), 1.0)
+            let inset: CGFloat = 1.1
+            let maxFillW = bodyRect.width - (inset * 2.0)
+            let fillRect = CGRect(
+                x: bodyRect.minX + inset,
+                y: bodyRect.minY + inset,
+                width: max(2.0, maxFillW * clamped),
+                height: bodyRect.height - (inset * 2.0)
+            )
+            let fillPath = Path(roundedRect: fillRect, cornerRadius: max(1.0, pillCornerRadius - 1.0))
+            context.fill(
+                fillPath,
+                with: .linearGradient(
+                    Gradient(colors: [Color(hex: 0x22C55E), Color(hex: 0x15803D)]),
+                    startPoint: CGPoint(x: 0, y: fillRect.minY),
+                    endPoint: CGPoint(x: 0, y: fillRect.maxY)
+                )
+            )
+
+            // Subtle top white specular reflection streak
+            let specularRect = CGRect(
+                x: fillRect.minX + 0.8,
+                y: fillRect.minY + 0.4,
+                width: max(1.0, fillRect.width - 1.6),
+                height: fillRect.height * 0.36
+            )
+            context.fill(
+                Path(roundedRect: specularRect, cornerRadius: 1.0),
+                with: .linearGradient(
+                    Gradient(colors: [Color.white.opacity(0.72), Color.white.opacity(0.10)]),
+                    startPoint: CGPoint(x: 0, y: specularRect.minY),
+                    endPoint: CGPoint(x: 0, y: specularRect.maxY)
+                )
+            )
+
+            // Glossy chrome border
+            context.stroke(
+                pillPath,
+                with: .linearGradient(
+                    Gradient(colors: [Color(hex: 0x6B7280), Color(hex: 0x374151)]),
+                    startPoint: CGPoint(x: 0, y: 0),
+                    endPoint: CGPoint(x: 0, y: bodyHeight)
+                ),
+                lineWidth: 1.0
+            )
+
+            // Chrome positive terminal nub on right
+            let nubHeight: CGFloat = 4.2
             let nubRect = CGRect(
-                x: bodyWidth,
+                x: bodyRect.maxX + 0.3,
                 y: (bodyHeight - nubHeight) / 2.0,
                 width: nubWidth,
                 height: nubHeight
             )
-            context.fill(Path(roundedRect: nubRect, cornerRadius: 0.8), with: .color(.black))
-
-            // Internal segmented charge bars
-            let clamped = min(max(CGFloat(level), 0.0), 1.0)
-            let activeSegments = max(1, Int(round(clamped * CGFloat(segmentCount))))
-
-            let insetX: CGFloat = 2.2
-            let insetY: CGFloat = 2.2
-            let spacing: CGFloat = 1.2
-            let availableWidth = bodyRect.width - (insetX * 2.0) - CGFloat(segmentCount - 1) * spacing
-            let segmentWidth = max(1.5, availableWidth / CGFloat(segmentCount))
-            let segmentHeight = bodyRect.height - (insetY * 2.0)
-
-            for index in 0..<activeSegments {
-                let x = bodyRect.minX + insetX + CGFloat(index) * (segmentWidth + spacing)
-                let segRect = CGRect(x: x, y: bodyRect.minY + insetY, width: segmentWidth, height: segmentHeight)
-                context.fill(Path(segRect), with: .color(.black))
-            }
+            context.fill(
+                Path(roundedRect: nubRect, cornerRadius: 0.9),
+                with: .linearGradient(
+                    Gradient(colors: [Color(hex: 0x9CA3AF), Color(hex: 0x4B5563)]),
+                    startPoint: CGPoint(x: 0, y: nubRect.minY),
+                    endPoint: CGPoint(x: 0, y: nubRect.maxY)
+                )
+            )
         }
         .frame(width: 22, height: 10)
+    }
+}
+
+/// Row of 5 star glyphs for the 6th-Gen Now Playing metadata stack.
+struct RetroStarRatingRow: View {
+    var rating: Int = 5
+
+    var body: some View {
+        HStack(spacing: 2.5) {
+            ForEach(1...5, id: \.self) { index in
+                Image(systemName: index <= rating ? "star.fill" : "star")
+                    .font(.system(size: 9.0, weight: .regular))
+                    .foregroundColor(index <= rating ? Color(hex: 0x9CA3AF) : Color(hex: 0xD1D5DB))
+            }
+        }
     }
 }
 
@@ -171,7 +223,6 @@ struct VintageMonochromeDiscEngraving: View {
                 let center = CGPoint(x: size.width / 2.0, y: size.height / 2.0)
                 let outerRadius = side * 0.41
 
-                // Outer disc base fill
                 let discRect = CGRect(
                     x: center.x - outerRadius,
                     y: center.y - outerRadius,
@@ -193,7 +244,6 @@ struct VintageMonochromeDiscEngraving: View {
                     )
                 )
 
-                // Diagonal reflective sheen wedges (classic engraved monochrome optical disc look)
                 for baseAngle in [35.0, 215.0] {
                     var wedge = Path()
                     wedge.move(to: center)
@@ -208,7 +258,6 @@ struct VintageMonochromeDiscEngraving: View {
                     context.fill(wedge, with: .color(.white.opacity(0.45)))
                 }
 
-                // Concentric engraved micro-grooves
                 let grooveRadii: [CGFloat] = [0.88, 0.78, 0.68, 0.58, 0.48]
                 for factor in grooveRadii {
                     let r = outerRadius * factor
@@ -220,10 +269,8 @@ struct VintageMonochromeDiscEngraving: View {
                     )
                 }
 
-                // Outer metallic bevel ring
                 context.stroke(discPath, with: .color(Color(hex: 0x686E78)), lineWidth: 1.2)
 
-                // Center clamping ring
                 let hubRadius = outerRadius * 0.30
                 let hubRect = CGRect(
                     x: center.x - hubRadius,
@@ -234,7 +281,6 @@ struct VintageMonochromeDiscEngraving: View {
                 context.fill(Path(ellipseIn: hubRect), with: .color(Color(hex: 0xCFD3D9)))
                 context.stroke(Path(ellipseIn: hubRect), with: .color(Color(hex: 0x767C86)), lineWidth: 1.0)
 
-                // Spindle hole
                 let holeRadius = outerRadius * 0.11
                 let holeRect = CGRect(
                     x: center.x - holeRadius,
@@ -247,7 +293,7 @@ struct VintageMonochromeDiscEngraving: View {
             }
 
             RoundedRectangle(cornerRadius: 2)
-                .stroke(Color(hex: 0xB0B5BD), lineWidth: 1)
+                .stroke(Color(hex: 0xD1D5DB), lineWidth: 1)
         }
     }
 }
@@ -273,7 +319,6 @@ struct WheelTransportGlyph: View {
 
             switch symbol {
             case .previous:
-                // |<<
                 let barRect = CGRect(x: 0, y: topY, width: 2.0, height: botY - topY)
                 context.fill(Path(barRect), with: .color(glyphColor))
 
@@ -292,7 +337,6 @@ struct WheelTransportGlyph: View {
                 context.fill(tri2, with: .color(glyphColor))
 
             case .next:
-                // >>|
                 var tri1 = Path()
                 tri1.move(to: CGPoint(x: 0, y: topY))
                 tri1.addLine(to: CGPoint(x: w * 0.50, y: midY))
@@ -311,7 +355,6 @@ struct WheelTransportGlyph: View {
                 context.fill(Path(barRect), with: .color(glyphColor))
 
             case .playPause:
-                // > ||
                 var playTri = Path()
                 playTri.move(to: CGPoint(x: 0, y: topY))
                 playTri.addLine(to: CGPoint(x: w * 0.46, y: midY))

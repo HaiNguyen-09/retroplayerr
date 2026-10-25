@@ -2,6 +2,40 @@ import Foundation
 import SwiftUI
 import UIKit
 
+enum MenuNavigationDirection: Equatable, Sendable {
+    case forward
+    case backward
+}
+
+enum RepeatMode: String, CaseIterable, Equatable, Sendable {
+    case off = "off"
+    case once = "once"
+    case forever = "forever"
+
+    /// Cycles: Off -> Repeat Once -> Repeat Forever -> Off
+    func next() -> RepeatMode {
+        switch self {
+        case .off:
+            return .once
+        case .once:
+            return .forever
+        case .forever:
+            return .off
+        }
+    }
+
+    var badgeText: String? {
+        switch self {
+        case .off:
+            return nil
+        case .once:
+            return "REPEAT 1"
+        case .forever:
+            return "REPEAT ∞"
+        }
+    }
+}
+
 enum ChassisTheme: String, CaseIterable, Equatable, Sendable {
     case light = "light"
     case gray = "gray"
@@ -184,10 +218,12 @@ enum MenuAction: Equatable {
     case shuffleAllAudio
     case openNowPlaying
     case importFiles
+    case editPlayerName
     case cycleChassisTheme
     case setChassisTheme(ChassisTheme)
     case cycleWheelSensitivity
     case setWheelSensitivity(WheelSensitivity)
+    case toggleShuffle
     case toggleClicker
     case toggleHoldLock
     case rescanLibrary

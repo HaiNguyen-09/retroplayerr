@@ -15,6 +15,7 @@ struct ClickWheelView: View {
     private let wheelRadius: CGFloat = 120.0
     private let centerButtonDiameter: CGFloat = 88.0
     private let centerButtonRadius: CGFloat = 44.0
+    private let ringMidpointOffset: CGFloat = 82.0 // Exact midpoint between 44pt inner radius and 120pt outer radius
 
     /// Active degree threshold per step — defaults to 60.0° per step.
     private var stepThresholdDegrees: Double {
@@ -66,30 +67,30 @@ struct ClickWheelView: View {
                         )
                 )
 
-            // Top: "MENU" text in Helvetica Bold
+            // Top: "MENU" text in Helvetica Bold, centered on upper ring midpoint
             Text("MENU")
                 .font(.custom("Helvetica-Bold", size: 11.5))
                 .tracking(0.8)
                 .foregroundColor(activeTheme.wheelLabelColor)
                 .scaleEffect(pressedZone == .menuTop ? 0.95 : 1.0)
-                .offset(y: -84)
+                .offset(y: -ringMidpointOffset)
 
-            // Bottom: Play/Pause icon
+            // Bottom: Play/Pause icon, centered on lower ring midpoint
             WheelTransportGlyph(symbol: .playPause, glyphColor: activeTheme.wheelLabelColor)
                 .scaleEffect(pressedZone == .playPauseBottom ? 0.94 : 1.0)
-                .offset(y: 84)
+                .offset(y: ringMidpointOffset)
 
-            // Left: Backward icon (track rewind/previous)
+            // Left: Backward icon (track rewind/previous), centered on left ring midpoint
             WheelTransportGlyph(symbol: .previous, glyphColor: activeTheme.wheelLabelColor)
                 .scaleEffect(pressedZone == .previousLeft ? 0.94 : 1.0)
-                .offset(x: -84)
+                .offset(x: -ringMidpointOffset)
 
-            // Right: Forward icon (track fast-forward/skip)
+            // Right: Forward icon (track fast-forward/skip), centered on right ring midpoint
             WheelTransportGlyph(symbol: .next, glyphColor: activeTheme.wheelLabelColor)
                 .scaleEffect(pressedZone == .nextRight ? 0.94 : 1.0)
-                .offset(x: 84)
+                .offset(x: ringMidpointOffset)
 
-            // Center button (Diameter 88pt, concave metallic gradient matching active theme)
+            // Center button (Diameter 88pt, perfectly centered in the 240pt wheel)
             Circle()
                 .fill(
                     LinearGradient(
@@ -133,7 +134,6 @@ struct ClickWheelView: View {
         let dy = value.location.y - center.y
         let touchRadius = hypot(dx, dy)
 
-        // On initial touch-down, check whether the touch started on the click wheel ring (44pt ... 120pt)
         if previousAngle == nil && !isRingGestureActive {
             let startDx = value.startLocation.x - center.x
             let startDy = value.startLocation.y - center.y
@@ -143,7 +143,6 @@ struct ClickWheelView: View {
                 pressedZone = detectZone(dx: startDx, dy: startDy, radius: startRadius)
             }
 
-            // Reject drag gestures if initial touch radius is < 44pt (center button) or > 120pt (outside wheel)
             guard startRadius >= centerButtonRadius && startRadius <= wheelRadius else {
                 return
             }
@@ -152,7 +151,6 @@ struct ClickWheelView: View {
             previousAngle = atan2(startDy, startDx) * 180.0 / .pi
         }
 
-        // Keep tracking finger smoothly while on the wheel; reject if finger moves deep into center or far outside
         guard isRingGestureActive, touchRadius >= 30.0 && touchRadius <= 145.0 else {
             previousAngle = nil
             return
@@ -165,7 +163,6 @@ struct ClickWheelView: View {
             return
         }
 
-        // Always update previousAngle to currentAngle so delta is strictly the incremental frame movement
         previousAngle = currentAngle
 
         var delta = currentAngle - prev
@@ -175,24 +172,20 @@ struct ClickWheelView: View {
             delta += 360.0
         }
 
-        // Clear button highlight once user starts rotating the wheel
         if abs(accumulatedDegrees + delta) > 6.0 {
             pressedZone = nil
         }
 
-        // If user reverses direction of rotation, reset opposite-sign remainder so direction change is immediate
         if (accumulatedDegrees > 0 && delta < -0.5) || (accumulatedDegrees < 0 && delta > 0.5) {
             accumulatedDegrees = 0.0
         }
 
         accumulatedDegrees += delta
-        let threshold = stepThresholdDegrees // 60.0° by default
+        let threshold = stepThresholdDegrees
 
-        // Fire 1 step each time the finger completes a 60° arc
         if abs(accumulatedDegrees) >= threshold {
             let direction = accumulatedDegrees > 0 ? 1 : -1
             accumulatedDegrees -= Double(direction) * threshold
-            // Prevent multiple burst steps in a single touch sample
             if abs(accumulatedDegrees) >= threshold {
                 accumulatedDegrees = 0.0
             }

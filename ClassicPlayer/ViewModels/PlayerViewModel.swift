@@ -7,12 +7,24 @@ import UIKit
 final class PlayerViewModel: ObservableObject {
     @Published private(set) var allMedia: [MediaItem] = []
     @Published var menuStack: [MenuPage] = []
+    @Published private(set) var navigationDirection: MenuNavigationDirection = .forward
     @Published var screenMode: ActiveScreenMode = .splitBrowser
     @Published var isHoldLocked: Bool = false
     @Published var isClickerEnabled: Bool = true
     @Published var batteryLevel: Float = 0.85
-    @Published var isScrubbingInNowPlaying: Bool = false
     @Published var isPresentingDocumentPicker: Bool = false
+    @Published var isPresentingPlayerNameAlert: Bool = false
+    @Published var draftPlayerName: String = ""
+
+    @AppStorage("customPlayerName") var customPlayerName: String = "My Player" {
+        didSet {
+            if customPlayerName.count > 50 {
+                customPlayerName = String(customPlayerName.prefix(50))
+            }
+            objectWillChange.send()
+            buildMenuStackPreservingSelection()
+        }
+    }
 
     @AppStorage("wheelSensitivity") var wheelSensitivityRaw: String = WheelSensitivity.deg60.rawValue {
         didSet {
@@ -23,6 +35,14 @@ final class PlayerViewModel: ObservableObject {
 
     @AppStorage("chassisTheme") var chassisThemeRaw: String = ChassisTheme.light.rawValue {
         didSet {
+            objectWillChange.send()
+            buildMenuStackPreservingSelection()
+        }
+    }
+
+    @AppStorage("isShuffleEnabled") var isShuffleEnabled: Bool = false {
+        didSet {
+            playbackEngine.setShuffleEnabled(isShuffleEnabled)
             objectWillChange.send()
             buildMenuStackPreservingSelection()
         }
@@ -44,6 +64,7 @@ final class PlayerViewModel: ObservableObject {
     private var directoryFileDescriptor: CInt = -1
 
     init() {
+        playbackEngine.setShuffleEnabled(isShuffleEnabled)
         setupBatteryMonitoring()
         bindPlaybackEngine()
         buildMenuStackPreservingSelection()
@@ -56,10 +77,6 @@ final class PlayerViewModel: ObservableObject {
 
     var currentPage: MenuPage {
         menuStack.last ?? MenuPage(title: "Player", rows: [])
-    }
-
-    var statusBarTitle: String {
-        "Player"
     }
 
     var previewImageForCurrentSelection: UIImage? {
@@ -83,6 +100,13 @@ final class PlayerViewModel: ObservableObject {
         return playbackEngine.currentItem?.artist
     }
 
+    func saveDraftPlayerName() {
+        let trimmed = draftPlayerName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let capped = String((trimmed.isEmpty ? "My Player" : trimmed).prefix(50))
+        customPlayerName = capped
+        isPresentingPlayerNameAlert = false
+    }
+
     func reloadLibrary() async {
         let discovered = await MediaLibraryService.shared.scanDocumentsDirectory()
         self.allMedia = discovered
@@ -103,10 +127,9 @@ final class PlayerViewModel: ObservableObject {
             }
 
             if menuStack.count == 1 {
+                navigationDirection = .forward
                 let page = MenuPage(title: "Documents", rows: rows, selectedIndex: targetIndex)
-                withAnimation(.easeInOut(duration: 0.21)) {
-                    menuStack.append(page)
-                }
+                menuStack.append(page)
             } else if !menuStack.isEmpty {
                 let lastIdx = menuStack.count - 1
                 if menuStack[lastIdx].rows.indices.contains(targetIndex) {
@@ -136,7 +159,6 @@ final class PlayerViewModel: ObservableObject {
             }
 
         case .audioNowPlaying, .videoFullCanvas:
-            // Directly fast-forward (clockwise, direction > 0) or rewind (counter-clockwise, direction < 0)
             let delta = Double(direction) * 5.0
             playbackEngine.seek(by: delta)
             FeedbackManager.shared.triggerWheelTick()
@@ -148,16 +170,14 @@ final class PlayerViewModel: ObservableObject {
         FeedbackManager.shared.triggerButtonPress()
 
         if screenMode != .splitBrowser {
-            isScrubbingInNowPlaying = false
             screenMode = .splitBrowser
             buildMenuStackPreservingSelection()
             return
         }
 
         if menuStack.count > 1 {
-            withAnimation(.easeInOut(duration: 0.21)) {
-                _ = menuStack.removeLast()
-            }
+            navigationDirection = .backward
+            _ = menuStack.removeLast()
         }
     }
 
@@ -171,7 +191,7 @@ final class PlayerViewModel: ObservableObject {
             execute(action: row.action)
 
         case .audioNowPlaying, .videoFullCanvas:
-            isScrubbingInNowPlaying.toggle()
+            playbackEngine.cycleRepeatMode()
         }
     }
 
@@ -212,21 +232,14 @@ final class PlayerViewModel: ObservableObject {
         buildMenuStackPreservingSelection()
     }
 
-    func cycleThemeFromTopBar() {
-        guard !isHoldLocked else { return }
-        chassisTheme = chassisTheme.next()
-        FeedbackManager.shared.triggerButtonPress()
-    }
-
     // MARK: - Menu Tree Execution & Construction
 
     private func execute(action: MenuAction) {
         switch action {
         case .pushSubmenu(let title, let items):
+            navigationDirection = .forward
             let page = MenuPage(title: title, rows: items, selectedIndex: 0)
-            withAnimation(.easeInOut(duration: 0.21)) {
-                menuStack.append(page)
-            }
+            menuStack.append(page)
 
         case .playQueue(let items, let startIndex):
             guard items.indices.contains(startIndex) else { return }
@@ -235,9 +248,10 @@ final class PlayerViewModel: ObservableObject {
             transitionToActivePlayerScreen(for: selectedMedia)
 
         case .shuffleAllAudio:
-            let audioItems = allMedia.filter { $0.kind == .audio }.shuffled()
-            let pool = audioItems.isEmpty ? allMedia.shuffled() : audioItems
+            let audioItems = allMedia.filter { $0.kind == .audio }
+            let pool = (audioItems.isEmpty ? allMedia : audioItems).shuffled()
             guard let first = pool.first else { return }
+            isShuffleEnabled = true
             playbackEngine.playMedia(url: first.url, inQueue: pool, startIndex: 0)
             transitionToActivePlayerScreen(for: first)
 
@@ -247,6 +261,10 @@ final class PlayerViewModel: ObservableObject {
 
         case .importFiles:
             isPresentingDocumentPicker = true
+
+        case .editPlayerName:
+            draftPlayerName = customPlayerName
+            isPresentingPlayerNameAlert = true
 
         case .cycleChassisTheme:
             chassisTheme = chassisTheme.next()
@@ -262,6 +280,10 @@ final class PlayerViewModel: ObservableObject {
 
         case .setWheelSensitivity(let newSensitivity):
             wheelSensitivity = newSensitivity
+            buildMenuStackPreservingSelection()
+
+        case .toggleShuffle:
+            isShuffleEnabled.toggle()
             buildMenuStackPreservingSelection()
 
         case .toggleClicker:
@@ -281,7 +303,6 @@ final class PlayerViewModel: ObservableObject {
     }
 
     private func transitionToActivePlayerScreen(for item: MediaItem) {
-        isScrubbingInNowPlaying = false
         switch item.kind {
         case .video:
             screenMode = .videoFullCanvas
@@ -305,7 +326,6 @@ final class PlayerViewModel: ObservableObject {
             selectedIndex: previousRootSelection
         )
 
-        // Refresh open submenus so imported files or updated Settings reflect immediately
         for idx in 1..<menuStack.count {
             let pageTitle = menuStack[idx].title
             let pageId = menuStack[idx].id
@@ -316,10 +336,6 @@ final class PlayerViewModel: ObservableObject {
             switch pageTitle {
             case "Settings":
                 menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeSettingsRows(), selectedIndex: selected)
-            case "Theme":
-                menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeThemeSubmenuRows(), selectedIndex: selected)
-            case "Sensitivity":
-                menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeSensitivitySubmenuRows(), selectedIndex: selected)
             case "Music":
                 menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeMusicMenuRows(audioItems: audioItems), selectedIndex: selected)
             case "All Songs":
@@ -393,7 +409,7 @@ final class PlayerViewModel: ObservableObject {
                 showsChevron: true,
                 previewArtworkData: nil,
                 previewTitle: "Settings",
-                previewSubtitle: "\(chassisTheme.displayName) • \(wheelSensitivity.shortLabel)",
+                previewSubtitle: "\(customPlayerName)",
                 action: .pushSubmenu(title: "Settings", items: makeSettingsRows())
             )
         ]
@@ -418,7 +434,6 @@ final class PlayerViewModel: ObservableObject {
     private func makeMusicMenuRows(audioItems: [MediaItem]) -> [MenuRowItem] {
         let firstArt = audioItems.first(where: { $0.artworkData != nil })?.artworkData
 
-        // Group by Artist
         let groupedByArtist = Dictionary(grouping: audioItems, by: { $0.artist })
         let artistRows: [MenuRowItem] = groupedByArtist.keys.sorted().map { artist in
             let tracks = groupedByArtist[artist] ?? []
@@ -434,7 +449,6 @@ final class PlayerViewModel: ObservableObject {
             )
         }
 
-        // Group by Album
         let groupedByAlbum = Dictionary(grouping: audioItems, by: { $0.album })
         let albumRows: [MenuRowItem] = groupedByAlbum.keys.sorted().map { album in
             let tracks = groupedByAlbum[album] ?? []
@@ -550,41 +564,20 @@ final class PlayerViewModel: ObservableObject {
         ]
     }
 
-    private func makeThemeSubmenuRows() -> [MenuRowItem] {
-        ChassisTheme.allCases.map { option in
-            let isCurrent = (option == chassisTheme)
-            return MenuRowItem(
-                id: "theme_\(option.rawValue)",
-                title: option.displayName,
-                valueText: isCurrent ? "✓" : nil,
-                showsChevron: false,
-                previewTitle: "Body Finish",
-                previewSubtitle: option.displayName,
-                action: .setChassisTheme(option)
-            )
-        }
-    }
-
-    private func makeSensitivitySubmenuRows() -> [MenuRowItem] {
-        WheelSensitivity.allCases.map { option in
-            let isCurrent = (option == wheelSensitivity)
-            return MenuRowItem(
-                id: "sens_\(option.rawValue)",
-                title: option.displayName,
-                valueText: isCurrent ? "✓" : nil,
-                showsChevron: false,
-                previewTitle: "Wheel Sensitivity",
-                previewSubtitle: option.displayName,
-                action: .setWheelSensitivity(option)
-            )
-        }
-    }
-
     private func makeSettingsRows() -> [MenuRowItem] {
         let audioCount = allMedia.filter { $0.kind == .audio }.count
         let videoCount = allMedia.filter { $0.kind == .video }.count
 
         let aboutRows: [MenuRowItem] = [
+            MenuRowItem(
+                id: "about_name",
+                title: "Name",
+                valueText: customPlayerName,
+                showsChevron: false,
+                previewTitle: "Player Name",
+                previewSubtitle: customPlayerName,
+                action: .editPlayerName
+            ),
             MenuRowItem(
                 id: "about_model",
                 title: "ClassicPlayer",
@@ -611,19 +604,28 @@ final class PlayerViewModel: ObservableObject {
                 previewTitle: "Videos",
                 previewSubtitle: "\(videoCount) Video Clips",
                 action: .rescanLibrary
-            ),
-            MenuRowItem(
-                id: "about_storage",
-                title: "Source",
-                valueText: "Documents",
-                showsChevron: false,
-                previewTitle: "Local Storage",
-                previewSubtitle: "Sandbox Documents",
-                action: .rescanLibrary
             )
         ]
 
         return [
+            MenuRowItem(
+                id: "settings_player_name",
+                title: "Player Name",
+                valueText: customPlayerName,
+                showsChevron: true,
+                previewTitle: "Player Name",
+                previewSubtitle: customPlayerName,
+                action: .editPlayerName
+            ),
+            MenuRowItem(
+                id: "settings_shuffle",
+                title: "Shuffle",
+                valueText: isShuffleEnabled ? "On" : "Off",
+                showsChevron: false,
+                previewTitle: "Shuffle Mode",
+                previewSubtitle: isShuffleEnabled ? "Songs Shuffled" : "Sequential Order",
+                action: .toggleShuffle
+            ),
             MenuRowItem(
                 id: "settings_theme",
                 title: "Color Mode",

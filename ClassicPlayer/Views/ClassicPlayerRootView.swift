@@ -7,8 +7,6 @@ struct ClassicPlayerRootView: View {
         let theme = viewModel.chassisTheme
 
         GeometryReader { geo in
-            let halfHeight = geo.size.height / 2.0
-
             ZStack {
                 // Anodized metallic faceplate background (Light, Gray, or Dark Gray)
                 LinearGradient(
@@ -33,47 +31,46 @@ struct ClassicPlayerRootView: View {
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Upper half (50% of screen height): Top Hold Switch + Strict 4:3 LCD Container
-                    VStack(spacing: 10) {
+                    // Top Hold Switch + Strict 4:3 LCD Container
+                    VStack(spacing: 8) {
                         HStack {
                             Spacer()
                             holdSwitchControl(theme: theme)
                         }
                         .padding(.horizontal, 26)
-                        .padding(.top, 10)
+                        .padding(.top, 12)
 
                         LCDDisplayView(viewModel: viewModel)
-                            .padding(.horizontal, 24)
-
-                        Spacer(minLength: 0)
+                            .padding(.horizontal, 22)
                     }
-                    .frame(width: geo.size.width, height: halfHeight)
 
-                    // Lower half (50% of screen height): 240pt Click Wheel perfectly centered
-                    ZStack {
-                        ClickWheelView(
-                            onRotateStep: { step in
-                                viewModel.handleWheelStep(direction: step)
-                            },
-                            onMenuPress: {
-                                viewModel.handleMenuButton()
-                            },
-                            onPlayPausePress: {
-                                viewModel.handlePlayPauseButton()
-                            },
-                            onPreviousPress: {
-                                viewModel.handlePreviousButton()
-                            },
-                            onNextPress: {
-                                viewModel.handleNextButton()
-                            },
-                            onCenterPress: {
-                                viewModel.handleCenterSelectButton()
-                            }
-                        )
-                    }
-                    .frame(width: geo.size.width, height: halfHeight, alignment: .center)
+                    // Balanced vertical centering in the lower body so the Click Wheel isn't pushed too far down
+                    Spacer(minLength: 12)
+
+                    ClickWheelView(
+                        onRotateStep: { step in
+                            viewModel.handleWheelStep(direction: step)
+                        },
+                        onMenuPress: {
+                            viewModel.handleMenuButton()
+                        },
+                        onPlayPausePress: {
+                            viewModel.handlePlayPauseButton()
+                        },
+                        onPreviousPress: {
+                            viewModel.handlePreviousButton()
+                        },
+                        onNextPress: {
+                            viewModel.handleNextButton()
+                        },
+                        onCenterPress: {
+                            viewModel.handleCenterSelectButton()
+                        }
+                    )
+
+                    Spacer(minLength: 28)
                 }
+                .frame(width: geo.size.width, height: geo.size.height)
             }
         }
         .ignoresSafeArea()
@@ -89,6 +86,22 @@ struct ClassicPlayerRootView: View {
                 }
             )
             .ignoresSafeArea()
+        }
+        .alert("Player Name", isPresented: $viewModel.isPresentingPlayerNameAlert) {
+            TextField("My Player", text: $viewModel.draftPlayerName)
+                .onChange(of: viewModel.draftPlayerName) { newValue in
+                    if newValue.count > 50 {
+                        viewModel.draftPlayerName = String(newValue.prefix(50))
+                    }
+                }
+            Button("Cancel", role: .cancel) {
+                viewModel.isPresentingPlayerNameAlert = false
+            }
+            Button("Save") {
+                viewModel.saveDraftPlayerName()
+            }
+        } message: {
+            Text("Enter a custom name up to 50 characters (Unicode & emojis supported).")
         }
         .onOpenURL { incomingURL in
             let saved = DocumentImporterSheet.Coordinator.persistFilesToDocuments([incomingURL])

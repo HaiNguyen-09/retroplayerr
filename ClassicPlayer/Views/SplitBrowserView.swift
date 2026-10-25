@@ -3,9 +3,15 @@ import UIKit
 
 struct SplitBrowserView: View {
     let page: MenuPage
+    let navigationDirection: MenuNavigationDirection
     let previewImage: UIImage?
     let previewTitle: String?
     let previewSubtitle: String?
+
+    @State private var activePage: MenuPage?
+    @State private var outgoingPage: MenuPage?
+    @State private var activeOffsetX: CGFloat = 0
+    @State private var outgoingOffsetX: CGFloat = 0
 
     private var onePixel: CGFloat {
         1.0 / UIScreen.main.scale
@@ -14,25 +20,55 @@ struct SplitBrowserView: View {
     var body: some View {
         GeometryReader { geo in
             let halfWidth = geo.size.width / 2.0
+            let currentDisplayed = activePage ?? page
 
             HStack(spacing: 0) {
-                // Left 50%: Strictly Clipped Menu Navigation Column with Asymmetric Slide Transition
+                // Left 50%: Synchronized Left/Right Sliding Menu Column (Strictly Clipped)
                 ZStack {
                     Color.white
 
-                    leftMenuListPane(for: page)
-                        .id(page.id)
-                        .transition(
-                            .asymmetric(
-                                insertion: .move(edge: .trailing),
-                                removal: .move(edge: .leading)
-                            )
-                        )
+                    if let outgoing = outgoingPage {
+                        leftMenuListPane(for: outgoing)
+                            .frame(width: halfWidth, height: geo.size.height)
+                            .offset(x: outgoingOffsetX)
+                    }
+
+                    leftMenuListPane(for: currentDisplayed)
+                        .frame(width: halfWidth, height: geo.size.height)
+                        .offset(x: activeOffsetX)
                 }
                 .frame(width: halfWidth, height: geo.size.height)
                 .clipped()
-                .animation(.easeInOut(duration: 0.21), value: page.id)
                 .zIndex(0)
+                .onAppear {
+                    activePage = page
+                    activeOffsetX = 0
+                }
+                .onChange(of: page) { newPage in
+                    guard let current = activePage else {
+                        activePage = newPage
+                        return
+                    }
+
+                    if current.id != newPage.id {
+                        // Synchronized slide animation:
+                        // Forward (drill in): right-to-left (+halfWidth -> 0, 0 -> -halfWidth)
+                        // Backward (MENU): left-to-right (-halfWidth -> 0, 0 -> +halfWidth)
+                        let isForward = (navigationDirection == .forward)
+                        outgoingPage = current
+                        activePage = newPage
+                        outgoingOffsetX = 0
+                        activeOffsetX = isForward ? halfWidth : -halfWidth
+
+                        withAnimation(.easeInOut(duration: 0.21)) {
+                            outgoingOffsetX = isForward ? -halfWidth : halfWidth
+                            activeOffsetX = 0
+                        }
+                    } else {
+                        // Same page (e.g. wheel selection index or inline setting value updated)
+                        activePage = newPage
+                    }
+                }
 
                 // 1px Center Split Divider (Stationary)
                 Rectangle()
@@ -53,20 +89,20 @@ struct SplitBrowserView: View {
         }
     }
 
-    private func leftMenuListPane(for activePage: MenuPage) -> some View {
+    private func leftMenuListPane(for menuPage: MenuPage) -> some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 0) {
-                    ForEach(Array(activePage.rows.enumerated()), id: \.element.id) { index, row in
-                        let isSelected = (index == activePage.selectedIndex)
+                    ForEach(Array(menuPage.rows.enumerated()), id: \.element.id) { index, row in
+                        let isSelected = (index == menuPage.selectedIndex)
                         menuRowView(row: row, isSelected: isSelected)
                             .id(row.id)
                     }
                 }
             }
             .background(Color.white)
-            .onChange(of: activePage.selectedIndex) { _ in
-                if let selectedRow = activePage.selectedRow {
+            .onChange(of: menuPage.selectedIndex) { _ in
+                if let selectedRow = menuPage.selectedRow {
                     withAnimation(.linear(duration: 0.05)) {
                         proxy.scrollTo(selectedRow.id, anchor: nil)
                     }
@@ -90,6 +126,8 @@ struct SplitBrowserView: View {
                     .font(.system(size: 11.5, weight: .bold, design: .default))
                     .foregroundColor(isSelected ? .white.opacity(0.92) : Color(hex: 0x555555))
                     .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: 68, alignment: .trailing)
             }
 
             if row.showsChevron {
@@ -128,11 +166,7 @@ struct SplitBrowserView: View {
         let reflectionHeight = artworkSide * 0.26
 
         return ZStack {
-            LinearGradient(
-                colors: [Color(hex: 0xFFFFFF), Color(hex: 0xECEEF2)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            Color.white
 
             VStack(spacing: 1) {
                 Spacer(minLength: 6)
@@ -140,7 +174,7 @@ struct SplitBrowserView: View {
                 // Primary square artwork or vintage monochrome disc engraving
                 artworkCard(side: artworkSide)
                     .frame(width: artworkSide, height: artworkSide)
-                    .shadow(color: .black.opacity(0.18), radius: 3, x: 0, y: 1)
+                    .shadow(color: .black.opacity(0.14), radius: 2, x: 0, y: 1)
 
                 // Smooth subtle horizontal reflection beneath the preview
                 artworkCard(side: artworkSide)
@@ -151,7 +185,7 @@ struct SplitBrowserView: View {
                     .mask(
                         LinearGradient(
                             stops: [
-                                .init(color: .black.opacity(0.30), location: 0.0),
+                                .init(color: .black.opacity(0.32), location: 0.0),
                                 .init(color: .black.opacity(0.08), location: 0.55),
                                 .init(color: .clear, location: 1.0)
                             ],
@@ -195,7 +229,7 @@ struct SplitBrowserView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 2))
                 .overlay(
                     RoundedRectangle(cornerRadius: 2)
-                        .stroke(Color(hex: 0x999EA6), lineWidth: onePixel)
+                        .stroke(Color(hex: 0xD1D5DB), lineWidth: 1.0)
                 )
         } else {
             VintageMonochromeDiscEngraving()
