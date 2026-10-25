@@ -24,9 +24,9 @@ struct MarqueePlayerNameView: View {
             let needsMarquee = textWidth > containerWidth && containerWidth > 10
 
             ZStack(alignment: needsMarquee ? .leading : .center) {
-                // Hidden sizer to measure untruncated string width
+                // Hidden sizer to measure untruncated string width with matching 11pt bold font
                 Text(text)
-                    .font(.system(size: 11, weight: .regular, design: .default))
+                    .font(.system(size: 11, weight: .bold, design: .default))
                     .fixedSize(horizontal: true, vertical: false)
                     .hidden()
                     .background(
@@ -48,21 +48,21 @@ struct MarqueePlayerNameView: View {
 
                         HStack(spacing: gap) {
                             Text(text)
-                                .font(.system(size: 11, weight: .regular, design: .default))
-                                .foregroundColor(Color(hex: 0x333333))
+                                .font(.system(size: 11, weight: .bold, design: .default))
+                                .foregroundColor(Color(hex: 0x222222))
                                 .fixedSize(horizontal: true, vertical: false)
 
                             Text(text)
-                                .font(.system(size: 11, weight: .regular, design: .default))
-                                .foregroundColor(Color(hex: 0x333333))
+                                .font(.system(size: 11, weight: .bold, design: .default))
+                                .foregroundColor(Color(hex: 0x222222))
                                 .fixedSize(horizontal: true, vertical: false)
                         }
                         .offset(x: currentOffset)
                     }
                 } else {
                     Text(text)
-                        .font(.system(size: 11, weight: .regular, design: .default))
-                        .foregroundColor(Color(hex: 0x333333))
+                        .font(.system(size: 11, weight: .bold, design: .default))
+                        .foregroundColor(Color(hex: 0x222222))
                         .fixedSize(horizontal: true, vertical: false)
                 }
             }

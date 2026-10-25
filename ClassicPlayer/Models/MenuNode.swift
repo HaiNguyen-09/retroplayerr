@@ -36,6 +36,19 @@ enum RepeatMode: String, CaseIterable, Equatable, Sendable {
     }
 }
 
+struct CoverFlowAlbumGroup: Identifiable, Equatable, Sendable {
+    let id: String
+    let albumTitle: String
+    let artistName: String
+    let artworkData: Data?
+    let tracks: [MediaItem]
+
+    var artworkImage: UIImage? {
+        guard let artworkData else { return nil }
+        return UIImage(data: artworkData)
+    }
+}
+
 enum ChassisTheme: String, CaseIterable, Equatable, Sendable {
     case light = "light"
     case gray = "gray"
@@ -141,12 +154,13 @@ enum ChassisTheme: String, CaseIterable, Equatable, Sendable {
         }
     }
 
+    /// Crisp #8E8E93 on white/light wheel or #E5E5E5 on gray/black wheel
     var wheelLabelColor: Color {
         switch self {
         case .light:
-            return Color(hex: 0x3E3E42)
+            return Color(hex: 0x8E8E93)
         case .gray, .darkGray:
-            return Color(hex: 0xECEEF2)
+            return Color(hex: 0xE5E5E5)
         }
     }
 
@@ -215,6 +229,7 @@ enum WheelSensitivity: String, CaseIterable, Equatable, Sendable {
 enum MenuAction: Equatable {
     case pushSubmenu(title: String, items: [MenuRowItem])
     case playQueue(items: [MediaItem], startIndex: Int)
+    case openCoverFlow
     case shuffleAllAudio
     case openNowPlaying
     case importFiles
@@ -289,6 +304,7 @@ struct MenuPage: Identifiable, Equatable {
 
 enum ActiveScreenMode: Equatable {
     case splitBrowser
+    case coverFlow
     case audioNowPlaying
     case videoFullCanvas
 }

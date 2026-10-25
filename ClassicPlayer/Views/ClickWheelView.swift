@@ -15,7 +15,6 @@ struct ClickWheelView: View {
     private let wheelRadius: CGFloat = 120.0
     private let centerButtonDiameter: CGFloat = 88.0
     private let centerButtonRadius: CGFloat = 44.0
-    private let ringMidpointOffset: CGFloat = 82.0 // Exact midpoint between 44pt inner radius and 120pt outer radius
 
     /// Active degree threshold per step — defaults to 60.0° per step.
     private var stepThresholdDegrees: Double {
@@ -67,28 +66,45 @@ struct ClickWheelView: View {
                         )
                 )
 
-            // Top: "MENU" text in Helvetica Bold, centered on upper ring midpoint
-            Text("MENU")
-                .font(.custom("Helvetica-Bold", size: 11.5))
-                .tracking(0.8)
-                .foregroundColor(activeTheme.wheelLabelColor)
-                .scaleEffect(pressedZone == .menuTop ? 0.95 : 1.0)
-                .offset(y: -ringMidpointOffset)
+            // Outer-Rim Anchored Top & Bottom Labels (leaving middle track clean for circular scrolling)
+            VStack(spacing: 0) {
+                // Top: "MENU" anchored ~9pt from the outer rim
+                Text("MENU")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .tracking(0.6)
+                    .foregroundColor(activeTheme.wheelLabelColor)
+                    .scaleEffect(pressedZone == .menuTop ? 0.95 : 1.0)
+                    .padding(.top, 9)
 
-            // Bottom: Play/Pause icon, centered on lower ring midpoint
-            WheelTransportGlyph(symbol: .playPause, glyphColor: activeTheme.wheelLabelColor)
-                .scaleEffect(pressedZone == .playPauseBottom ? 0.94 : 1.0)
-                .offset(y: ringMidpointOffset)
+                Spacer(minLength: 0)
 
-            // Left: Backward icon (track rewind/previous), centered on left ring midpoint
-            WheelTransportGlyph(symbol: .previous, glyphColor: activeTheme.wheelLabelColor)
-                .scaleEffect(pressedZone == .previousLeft ? 0.94 : 1.0)
-                .offset(x: -ringMidpointOffset)
+                // Bottom: Play/Pause glyph anchored ~10pt from the outer rim
+                WheelTransportGlyph(symbol: .playPause, glyphColor: activeTheme.wheelLabelColor)
+                    .frame(width: 19, height: 12)
+                    .scaleEffect(pressedZone == .playPauseBottom ? 0.94 : 1.0)
+                    .padding(.bottom, 10)
+            }
+            .frame(width: wheelDiameter, height: wheelDiameter)
+            .allowsHitTesting(false)
 
-            // Right: Forward icon (track fast-forward/skip), centered on right ring midpoint
-            WheelTransportGlyph(symbol: .next, glyphColor: activeTheme.wheelLabelColor)
-                .scaleEffect(pressedZone == .nextRight ? 0.94 : 1.0)
-                .offset(x: ringMidpointOffset)
+            // Outer-Rim Anchored Left & Right Transport Icons (~11pt from outer rim)
+            HStack(spacing: 0) {
+                // Left: Rewind / Previous (|◀◀)
+                WheelTransportGlyph(symbol: .previous, glyphColor: activeTheme.wheelLabelColor)
+                    .frame(width: 19, height: 12)
+                    .scaleEffect(pressedZone == .previousLeft ? 0.94 : 1.0)
+                    .padding(.leading, 11)
+
+                Spacer(minLength: 0)
+
+                // Right: Fast-Forward / Next (▶▶|)
+                WheelTransportGlyph(symbol: .next, glyphColor: activeTheme.wheelLabelColor)
+                    .frame(width: 19, height: 12)
+                    .scaleEffect(pressedZone == .nextRight ? 0.94 : 1.0)
+                    .padding(.trailing, 11)
+            }
+            .frame(width: wheelDiameter, height: wheelDiameter)
+            .allowsHitTesting(false)
 
             // Center button (Diameter 88pt, perfectly centered in the 240pt wheel)
             Circle()
@@ -112,6 +128,7 @@ struct ClickWheelView: View {
                         )
                 )
                 .scaleEffect(pressedZone == .center ? 0.97 : 1.0)
+                .allowsHitTesting(false)
         }
         .frame(width: wheelDiameter, height: wheelDiameter)
         .contentShape(Circle())

@@ -65,6 +65,28 @@ struct LCDDisplayView: View {
                         )
                     }
 
+                case .coverFlow:
+                    VStack(spacing: 0) {
+                        RetroStatusBarView(
+                            leftTitle: viewModel.statusBarLeftTitle,
+                            customPlayerName: viewModel.customPlayerName,
+                            playbackState: viewModel.playbackEngine.playbackState,
+                            isHoldLocked: viewModel.isHoldLocked,
+                            batteryLevel: viewModel.batteryLevel
+                        )
+                        .transaction { transaction in
+                            transaction.animation = nil
+                        }
+                        .zIndex(2)
+
+                        CoverFlowView(
+                            albums: viewModel.coverFlowAlbums,
+                            selectedAlbumIndex: viewModel.coverFlowSelectedIndex,
+                            isFlippedToTracklist: viewModel.isCoverFlowFlipped,
+                            selectedTrackIndex: viewModel.coverFlowTrackIndex
+                        )
+                    }
+
                 case .audioNowPlaying:
                     VStack(spacing: 0) {
                         RetroStatusBarView(

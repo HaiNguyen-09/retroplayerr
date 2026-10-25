@@ -10,19 +10,40 @@ struct NowPlayingLCDView: View {
     let repeatMode: RepeatMode
     let isShuffleEnabled: Bool
 
-    private var onePixel: CGFloat {
-        1.0 / UIScreen.main.scale
-    }
+    private let artworkSide: CGFloat = 105.0
+    private let reflectionHeight: CGFloat = 35.0
 
     var body: some View {
         GeometryReader { geo in
             VStack(spacing: 0) {
-                // Main Body: Left Artwork (105x105 + 35pt reflection) & Right Metadata Stack
-                HStack(alignment: .top, spacing: 12) {
-                    artworkWithReflection
-                        .padding(.top, 12)
+                // Vertically center the primary playback content group (105x105 Artwork square + Metadata stack)
+                // in the space between the top status bar and the bottom scrubber bar.
+                Spacer(minLength: 0)
+
+                HStack(alignment: .center, spacing: 12) {
+                    // Left Column: 105x105 Artwork square with unconstrained bottom reflection overlay
+                    // so the reflection does not participate in vertical centering layout math.
+                    artworkSquare(side: artworkSide)
+                        .frame(width: artworkSide, height: artworkSide)
+                        .overlay(alignment: .bottom) {
+                            artworkSquare(side: artworkSide)
+                                .frame(width: artworkSide, height: artworkSide)
+                                .scaleEffect(x: 1.0, y: -1.0)
+                                .frame(width: artworkSide, height: reflectionHeight, alignment: .top)
+                                .clipped()
+                                .mask(
+                                    LinearGradient(
+                                        colors: [Color.black.opacity(0.35), Color.black.opacity(0.0)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                                .offset(y: reflectionHeight)
+                                .allowsHitTesting(false)
+                        }
                         .padding(.leading, 12)
 
+                    // Right Column: Track Metadata Stack
                     VStack(alignment: .leading, spacing: 3) {
                         // 1. Track Title: Bold, 13pt system font, primary black (#000000), line limit 2
                         Text(item?.title ?? "No Track Selected")
@@ -72,11 +93,10 @@ struct NowPlayingLCDView: View {
                             .padding(.top, 2)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 12)
                     .padding(.trailing, 12)
                 }
 
-                Spacer(minLength: 0)
+                Spacer(minLength: 14)
 
                 // Skeuomorphic Aqua Scrubber Bar with Time Labels level with the bar + mirrored reflection below
                 HStack(alignment: .top, spacing: 7) {
@@ -116,7 +136,7 @@ struct NowPlayingLCDView: View {
                         .offset(y: -1.5)
                 }
                 .padding(.horizontal, 12)
-                .padding(.bottom, 8)
+                .padding(.bottom, 10)
             }
             .frame(width: geo.size.width, height: geo.size.height)
             .background(Color(hex: 0xFFFFFF))
@@ -128,30 +148,6 @@ struct NowPlayingLCDView: View {
             return "Unknown Album"
         }
         return album
-    }
-
-    private var artworkWithReflection: some View {
-        let side: CGFloat = 105.0
-        let reflectionHeight: CGFloat = 35.0
-
-        return VStack(spacing: 0) {
-            artworkSquare(side: side)
-                .frame(width: side, height: side)
-
-            artworkSquare(side: side)
-                .frame(width: side, height: side)
-                .scaleEffect(x: 1.0, y: -1.0)
-                .frame(width: side, height: reflectionHeight, alignment: .top)
-                .clipped()
-                .mask(
-                    LinearGradient(
-                        colors: [Color.black.opacity(0.35), Color.black.opacity(0.0)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-        }
-        .frame(width: side, height: side + reflectionHeight, alignment: .top)
     }
 
     @ViewBuilder

@@ -23,6 +23,8 @@
 		A100000E2B00000100000001 /* ClickWheelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000E2B00000100000001 /* ClickWheelView.swift */; };
 		A100000F2B00000100000001 /* ClassicPlayerRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000F2B00000100000001 /* ClassicPlayerRootView.swift */; };
 		A10000112B00000100000001 /* DocumentImporterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000112B00000100000001 /* DocumentImporterView.swift */; };
+		A10000122B00000100000001 /* CoverFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000122B00000100000001 /* CoverFlowView.swift */; };
+		A10000132B00000100000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000132B00000100000001 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -44,6 +46,8 @@
 		A200000F2B00000100000001 /* ClassicPlayerRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassicPlayerRootView.swift; sourceTree = "<group>"; };
 		A20000102B00000100000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A20000112B00000100000001 /* DocumentImporterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImporterView.swift; sourceTree = "<group>"; };
+		A20000122B00000100000001 /* CoverFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverFlowView.swift; sourceTree = "<group>"; };
+		A20000132B00000100000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +73,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000102B00000100000001 /* Info.plist */,
+				A20000132B00000100000001 /* Assets.xcassets */,
 				A20000012B00000100000001 /* ClassicPlayerApp.swift */,
 				A40000032B00000100000001 /* Models */,
 				A40000042B00000100000001 /* Services */,
@@ -111,6 +116,7 @@
 				A20000082B00000100000001 /* RetroGlyphs.swift */,
 				A20000092B00000100000001 /* RetroStatusBarView.swift */,
 				A200000A2B00000100000001 /* SplitBrowserView.swift */,
+				A20000122B00000100000001 /* CoverFlowView.swift */,
 				A200000B2B00000100000001 /* NowPlayingLCDView.swift */,
 				A200000C2B00000100000001 /* VideoPlayerLCDView.swift */,
 				A200000D2B00000100000001 /* LCDDisplayView.swift */,
@@ -138,6 +144,7 @@
 			buildPhases = (
 				A60000012B00000100000001 /* Sources */,
 				A30000012B00000100000001 /* Frameworks */,
+				A60000022B00000100000001 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -181,6 +188,17 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		A60000022B00000100000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000132B00000100000001 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		A60000012B00000100000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -196,6 +214,7 @@
 				A10000082B00000100000001 /* RetroGlyphs.swift in Sources */,
 				A10000092B00000100000001 /* RetroStatusBarView.swift in Sources */,
 				A100000A2B00000100000001 /* SplitBrowserView.swift in Sources */,
+				A10000122B00000100000001 /* CoverFlowView.swift in Sources */,
 				A100000B2B00000100000001 /* NowPlayingLCDView.swift in Sources */,
 				A100000C2B00000100000001 /* VideoPlayerLCDView.swift in Sources */,
 				A100000D2B00000100000001 /* LCDDisplayView.swift in Sources */,
@@ -264,6 +283,7 @@
 		A90000032B00000100000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -287,6 +307,7 @@
 		A90000042B00000100000001 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;

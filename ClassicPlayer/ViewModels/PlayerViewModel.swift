@@ -16,6 +16,11 @@ final class PlayerViewModel: ObservableObject {
     @Published var isPresentingPlayerNameAlert: Bool = false
     @Published var draftPlayerName: String = ""
 
+    // Cover Flow 3D Carousel state
+    @Published var coverFlowSelectedIndex: Int = 0
+    @Published var isCoverFlowFlipped: Bool = false
+    @Published var coverFlowTrackIndex: Int = 0
+
     @AppStorage("customPlayerName") var customPlayerName: String = "My Player" {
         didSet {
             if customPlayerName.count > 50 {
@@ -84,12 +89,65 @@ final class PlayerViewModel: ObservableObject {
             if screenMode == .audioNowPlaying || menuStack.count <= 1 {
                 return "Now Playing"
             }
+            if screenMode == .coverFlow {
+                return "Cover Flow"
+            }
             return currentPage.title
         } else {
+            if screenMode == .coverFlow {
+                return "Cover Flow"
+            }
             if screenMode == .splitBrowser && menuStack.count > 1 {
                 return currentPage.title
             }
             return ""
+        }
+    }
+
+    /// Builds the 3D Cover Flow cards from the audio library (grouping tagged albums and giving untagged tracks individual cards).
+    var coverFlowAlbums: [CoverFlowAlbumGroup] {
+        let audioItems = allMedia.filter { $0.kind == .audio }
+        let sourceItems = audioItems.isEmpty ? allMedia : audioItems
+        guard !sourceItems.isEmpty else { return [] }
+
+        var groups: [CoverFlowAlbumGroup] = []
+        var namedAlbumMap: [String: [MediaItem]] = [:]
+
+        for item in sourceItems {
+            let trimmedAlbum = item.album.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmedAlbum.isEmpty || trimmedAlbum == "Unknown Album" || trimmedAlbum == "Documents" {
+                // Give untagged single tracks their own Cover Flow card so every track is browsable in 3D
+                groups.append(
+                    CoverFlowAlbumGroup(
+                        id: "single_\(item.id)",
+                        albumTitle: item.title,
+                        artistName: item.artist,
+                        artworkData: item.artworkData,
+                        tracks: [item]
+                    )
+                )
+            } else {
+                namedAlbumMap[trimmedAlbum, default: []].append(item)
+            }
+        }
+
+        for albumName in namedAlbumMap.keys.sorted() {
+            if let tracks = namedAlbumMap[albumName], let first = tracks.first {
+                let art = tracks.first(where: { $0.artworkData != nil })?.artworkData
+                groups.append(
+                    CoverFlowAlbumGroup(
+                        id: "album_\(albumName)",
+                        albumTitle: albumName,
+                        artistName: first.artist,
+                        artworkData: art,
+                        tracks: tracks
+                    )
+                )
+            }
+        }
+
+        return groups.sorted {
+            $0.albumTitle.localizedCaseInsensitiveCompare($1.albumTitle) == .orderedAscending
         }
     }
 
@@ -172,6 +230,29 @@ final class PlayerViewModel: ObservableObject {
                 FeedbackManager.shared.triggerWheelTick()
             }
 
+        case .coverFlow:
+            let albums = coverFlowAlbums
+            guard !albums.isEmpty else { return }
+
+            if isCoverFlowFlipped {
+                // Step through tracks on the back of the flipped jewel case
+                guard albums.indices.contains(coverFlowSelectedIndex) else { return }
+                let tracks = albums[coverFlowSelectedIndex].tracks
+                guard !tracks.isEmpty else { return }
+                let nextTrack = min(max(0, coverFlowTrackIndex + (direction > 0 ? 1 : -1)), tracks.count - 1)
+                if nextTrack != coverFlowTrackIndex {
+                    coverFlowTrackIndex = nextTrack
+                    FeedbackManager.shared.triggerWheelTick()
+                }
+            } else {
+                // Step through 3D album covers
+                let nextAlbum = min(max(0, coverFlowSelectedIndex + (direction > 0 ? 1 : -1)), albums.count - 1)
+                if nextAlbum != coverFlowSelectedIndex {
+                    coverFlowSelectedIndex = nextAlbum
+                    FeedbackManager.shared.triggerWheelTick()
+                }
+            }
+
         case .audioNowPlaying, .videoFullCanvas:
             let delta = Double(direction) * 5.0
             playbackEngine.seek(by: delta)
@@ -182,6 +263,18 @@ final class PlayerViewModel: ObservableObject {
     func handleMenuButton() {
         guard !isHoldLocked else { return }
         FeedbackManager.shared.triggerButtonPress()
+
+        if screenMode == .coverFlow {
+            if isCoverFlowFlipped {
+                // Flip jewel case back to front cover
+                isCoverFlowFlipped = false
+            } else {
+                // Exit Cover Flow back to previous menu
+                screenMode = .splitBrowser
+                buildMenuStackPreservingSelection()
+            }
+            return
+        }
 
         if screenMode != .splitBrowser {
             screenMode = .splitBrowser
@@ -203,6 +296,26 @@ final class PlayerViewModel: ObservableObject {
         case .splitBrowser:
             guard let row = currentPage.selectedRow else { return }
             execute(action: row.action)
+
+        case .coverFlow:
+            let albums = coverFlowAlbums
+            guard albums.indices.contains(coverFlowSelectedIndex) else { return }
+            let selectedAlbum = albums[coverFlowSelectedIndex]
+
+            if !isCoverFlowFlipped {
+                // Flip the active album 180° around Y-axis to reveal the tracklist on the back
+                coverFlowTrackIndex = 0
+                isCoverFlowFlipped = true
+            } else {
+                // Start playback of the selected track from the flipped jewel case
+                let tracks = selectedAlbum.tracks
+                let trackIdx = min(max(0, coverFlowTrackIndex), max(0, tracks.count - 1))
+                guard tracks.indices.contains(trackIdx) else { return }
+                let chosenTrack = tracks[trackIdx]
+                isCoverFlowFlipped = false
+                playbackEngine.playMedia(url: chosenTrack.url, inQueue: tracks, startIndex: trackIdx)
+                transitionToActivePlayerScreen(for: chosenTrack)
+            }
 
         case .audioNowPlaying, .videoFullCanvas:
             playbackEngine.cycleRepeatMode()
@@ -226,7 +339,7 @@ final class PlayerViewModel: ObservableObject {
         guard !isHoldLocked else { return }
         FeedbackManager.shared.triggerButtonPress()
         playbackEngine.nextTrack()
-        if let current = playbackEngine.currentItem, screenMode != .splitBrowser {
+        if let current = playbackEngine.currentItem, screenMode == .audioNowPlaying || screenMode == .videoFullCanvas {
             transitionToActivePlayerScreen(for: current)
         }
     }
@@ -235,7 +348,7 @@ final class PlayerViewModel: ObservableObject {
         guard !isHoldLocked else { return }
         FeedbackManager.shared.triggerButtonPress()
         playbackEngine.previousTrack()
-        if let current = playbackEngine.currentItem, screenMode != .splitBrowser {
+        if let current = playbackEngine.currentItem, screenMode == .audioNowPlaying || screenMode == .videoFullCanvas {
             transitionToActivePlayerScreen(for: current)
         }
     }
@@ -260,6 +373,13 @@ final class PlayerViewModel: ObservableObject {
             let selectedMedia = items[startIndex]
             playbackEngine.playMedia(url: selectedMedia.url, inQueue: items, startIndex: startIndex)
             transitionToActivePlayerScreen(for: selectedMedia)
+
+        case .openCoverFlow:
+            let albums = coverFlowAlbums
+            coverFlowSelectedIndex = albums.isEmpty ? 0 : min(coverFlowSelectedIndex, albums.count - 1)
+            coverFlowTrackIndex = 0
+            isCoverFlowFlipped = false
+            screenMode = .coverFlow
 
         case .shuffleAllAudio:
             let audioItems = allMedia.filter { $0.kind == .audio }
@@ -479,6 +599,15 @@ final class PlayerViewModel: ObservableObject {
         }
 
         return [
+            MenuRowItem(
+                id: "music_cover_flow",
+                title: "Cover Flow",
+                showsChevron: true,
+                previewArtworkData: firstArt,
+                previewTitle: "Cover Flow",
+                previewSubtitle: "3D Album Browser",
+                action: .openCoverFlow
+            ),
             MenuRowItem(
                 id: "music_all_songs",
                 title: "All Songs",
@@ -710,7 +839,7 @@ final class PlayerViewModel: ObservableObject {
             .sink { [weak self] newItem in
                 guard let self else { return }
                 self.buildMenuStackPreservingSelection()
-                if let newItem, self.screenMode != .splitBrowser {
+                if let newItem, self.screenMode == .audioNowPlaying || self.screenMode == .videoFullCanvas {
                     self.transitionToActivePlayerScreen(for: newItem)
                 }
             }
