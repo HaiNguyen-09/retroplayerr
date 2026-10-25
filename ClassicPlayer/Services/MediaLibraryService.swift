@@ -82,17 +82,9 @@ actor MediaLibraryService {
 
         var title = fallbackTitle
         var artist = kind == .video ? "Video Clip" : "Unknown Artist"
-        var album = kind == .video ? "Videos" : "Documents"
+        var album = kind == .video ? "Videos" : "Unknown Album"
         var durationSeconds: TimeInterval = 0
         var artworkData: Data?
-
-        // Show subfolder name as Album if located in a subfolder of Documents
-        if let docsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-            let parentName = url.deletingLastPathComponent().lastPathComponent
-            if parentName != docsURL.lastPathComponent && !parentName.isEmpty {
-                album = parentName
-            }
-        }
 
         if let cmDuration = try? await asset.load(.duration) {
             let seconds = CMTimeGetSeconds(cmDuration)

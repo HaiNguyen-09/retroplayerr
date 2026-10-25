@@ -546,15 +546,6 @@ final class PlayerViewModel: ObservableObject {
                 previewTitle: message,
                 previewSubtitle: "Select from Files app",
                 action: .importFiles
-            ),
-            MenuRowItem(
-                id: "rescan_prompt_\(message)",
-                title: "Rescan Documents",
-                showsChevron: false,
-                previewArtworkData: nil,
-                previewTitle: "Rescan Documents",
-                previewSubtitle: "Refresh Sandbox",
-                action: .rescanLibrary
             )
         ]
     }
@@ -629,15 +620,6 @@ final class PlayerViewModel: ObservableObject {
                 previewTitle: "Local Storage",
                 previewSubtitle: "Sandbox Documents",
                 action: .rescanLibrary
-            ),
-            MenuRowItem(
-                id: "about_net",
-                title: "Network",
-                valueText: "Offline",
-                showsChevron: false,
-                previewTitle: "Zero Network",
-                previewSubtitle: "100% Local Sandbox",
-                action: .rescanLibrary
             )
         ]
 
@@ -652,14 +634,6 @@ final class PlayerViewModel: ObservableObject {
                 action: .cycleChassisTheme
             ),
             MenuRowItem(
-                id: "settings_theme_menu",
-                title: "Theme Preset",
-                showsChevron: true,
-                previewTitle: "Player Finish",
-                previewSubtitle: chassisTheme.displayName,
-                action: .pushSubmenu(title: "Theme", items: makeThemeSubmenuRows())
-            ),
-            MenuRowItem(
                 id: "settings_sensitivity",
                 title: "Sensitivity",
                 valueText: wheelSensitivity.shortLabel,
@@ -667,14 +641,6 @@ final class PlayerViewModel: ObservableObject {
                 previewTitle: "Wheel Sensitivity",
                 previewSubtitle: wheelSensitivity.displayName,
                 action: .cycleWheelSensitivity
-            ),
-            MenuRowItem(
-                id: "settings_sensitivity_menu",
-                title: "Sensitivity Preset",
-                showsChevron: true,
-                previewTitle: "Wheel Presets",
-                previewSubtitle: "Standard 60° / Low 75° / High 45°",
-                action: .pushSubmenu(title: "Sensitivity", items: makeSensitivitySubmenuRows())
             ),
             MenuRowItem(
                 id: "settings_clicker",
@@ -701,14 +667,6 @@ final class PlayerViewModel: ObservableObject {
                 previewTitle: "Import Media",
                 previewSubtitle: "From iOS Files App",
                 action: .importFiles
-            ),
-            MenuRowItem(
-                id: "settings_rescan",
-                title: "Rescan Documents",
-                showsChevron: false,
-                previewTitle: "Rescan Library",
-                previewSubtitle: "Documents & Subfolders",
-                action: .rescanLibrary
             ),
             MenuRowItem(
                 id: "settings_about",

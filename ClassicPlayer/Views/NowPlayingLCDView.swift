@@ -28,23 +28,14 @@ struct NowPlayingLCDView: View {
                             .foregroundColor(.black)
                             .lineLimit(2)
 
-                        Text(item?.artist ?? "")
-                            .font(.system(size: 11.5, weight: .semibold))
-                            .foregroundColor(Color(hex: 0x33373E))
-                            .lineLimit(1)
-
-                        Text(item?.album ?? "")
-                            .font(.system(size: 11.0, weight: .medium))
-                            .foregroundColor(Color(hex: 0x666B75))
-                            .lineLimit(1)
+                        if let artist = item?.artist, !artist.isEmpty {
+                            Text(artist)
+                                .font(.system(size: 11.5, weight: .semibold))
+                                .foregroundColor(Color(hex: 0x33373E))
+                                .lineLimit(1)
+                        }
 
                         Spacer(minLength: 0)
-
-                        if isScrubbing {
-                            Text("SCRUBBING (ROTATE WHEEL)")
-                                .font(.system(size: 9.0, weight: .bold, design: .monospaced))
-                                .foregroundColor(Color(hex: 0x1D4ED8))
-                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 4)
@@ -157,7 +148,6 @@ struct NowPlayingLCDView: View {
                     .frame(width: fillWidth, height: 9)
             }
 
-            // Diamond scrubber thumb when in scrubbing mode
             if isScrubbing {
                 Rectangle()
                     .fill(Color(hex: 0x1D4ED8))
