@@ -6,9 +6,9 @@ enum MediaKind: String, Sendable {
 
     static func from(fileExtension: String) -> MediaKind? {
         switch fileExtension.lowercased() {
-        case "mp3", "m4a", "wav", "flac":
+        case "mp3", "m4a", "wav", "flac", "aac", "aiff", "aif", "caf":
             return .audio
-        case "mp4", "mov":
+        case "mp4", "mov", "m4v":
             return .video
         default:
             return nil

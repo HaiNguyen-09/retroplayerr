@@ -2,51 +2,51 @@ import Foundation
 import UIKit
 
 enum WheelSensitivity: String, CaseIterable, Equatable, Sendable {
-    case low = "low"
-    case medium = "medium"
-    case high = "high"
+    case deg60 = "60"
+    case deg75 = "75"
+    case deg45 = "45"
 
     var degreesPerStep: Double {
         switch self {
-        case .low:
-            return 36.0
-        case .medium:
-            return 28.0
-        case .high:
-            return 20.0
+        case .deg60:
+            return 60.0
+        case .deg75:
+            return 75.0
+        case .deg45:
+            return 45.0
         }
     }
 
     var displayName: String {
         switch self {
-        case .low:
-            return "Low (36°)"
-        case .medium:
-            return "Medium (28°)"
-        case .high:
-            return "High (20°)"
+        case .deg60:
+            return "Standard (60°)"
+        case .deg75:
+            return "Low (75°)"
+        case .deg45:
+            return "High (45°)"
         }
     }
 
     var shortLabel: String {
         switch self {
-        case .low:
-            return "Low"
-        case .medium:
-            return "Medium"
-        case .high:
-            return "High"
+        case .deg60:
+            return "60°"
+        case .deg75:
+            return "75°"
+        case .deg45:
+            return "45°"
         }
     }
 
     func next() -> WheelSensitivity {
         switch self {
-        case .low:
-            return .medium
-        case .medium:
-            return .high
-        case .high:
-            return .low
+        case .deg60:
+            return .deg75
+        case .deg75:
+            return .deg45
+        case .deg45:
+            return .deg60
         }
     }
 }
@@ -99,11 +99,7 @@ struct MenuRowItem: Identifiable, Equatable {
 
     var previewImage: UIImage? {
         guard let previewArtworkData else { return nil }
-        return UIImage(data: artworkDataOrNil(previewArtworkData))
-    }
-
-    private func artworkDataOrNil(_ data: Data) -> Data {
-        data
+        return UIImage(data: previewArtworkData)
     }
 }
 

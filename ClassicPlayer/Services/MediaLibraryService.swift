@@ -5,7 +5,10 @@ import UIKit
 actor MediaLibraryService {
     static let shared = MediaLibraryService()
 
-    private let supportedExtensions: Set<String> = ["mp3", "m4a", "wav", "flac", "mp4", "mov"]
+    private let supportedExtensions: Set<String> = [
+        "mp3", "m4a", "wav", "flac", "aac", "aiff", "aif", "caf",
+        "mp4", "mov", "m4v"
+    ]
 
     /// Scans the app's sandboxed Documents directory and all of its subfolders for supported local audio and video files.
     func scanDocumentsDirectory() async -> [MediaItem] {
@@ -13,7 +16,20 @@ actor MediaLibraryService {
             return []
         }
 
-        try? FileManager.default.createDirectory(at: documentsURL, withIntermediateDirectories: true)
+        let fileManager = FileManager.default
+        try? fileManager.createDirectory(at: documentsURL, withIntermediateDirectories: true)
+
+        // If any files were shared via "Open In" into Documents/Inbox, move them into Documents permanently
+        let inboxURL = documentsURL.appendingPathComponent("Inbox", isDirectory: true)
+        if let inboxFiles = try? fileManager.contentsOfDirectory(at: inboxURL, includingPropertiesForKeys: nil) {
+            for inboxFile in inboxFiles {
+                let dest = documentsURL.appendingPathComponent(inboxFile.lastPathComponent)
+                if fileManager.fileExists(atPath: dest.path) {
+                    try? fileManager.removeItem(at: dest)
+                }
+                try? fileManager.moveItem(at: inboxFile, to: dest)
+            }
+        }
 
         let fileURLs = discoverMediaURLs(in: documentsURL)
         var items: [MediaItem] = []
@@ -30,78 +46,11 @@ actor MediaLibraryService {
         }
     }
 
-    /// Copies user-selected media files (or folders of media files) from UIDocumentPickerViewController into the sandboxed Documents directory.
-    @discardableResult
-    func importFilesToDocuments(_ pickedURLs: [URL]) async -> Int {
-        guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            return 0
-        }
-
-        try? FileManager.default.createDirectory(at: documentsURL, withIntermediateDirectories: true)
-        let fileManager = FileManager.default
-        var importedCount = 0
-
-        for externalURL in pickedURLs {
-            let hasScope = externalURL.startAccessingSecurityScopedResource()
-            defer {
-                if hasScope {
-                    externalURL.stopAccessingSecurityScopedResource()
-                }
-            }
-
-            var isDir: ObjCBool = false
-            guard fileManager.fileExists(atPath: externalURL.path, isDirectory: &isDir) else {
-                continue
-            }
-
-            if isDir.boolValue {
-                let nestedMediaURLs = discoverMediaURLs(in: externalURL)
-                for mediaURL in nestedMediaURLs {
-                    if copyMediaFileIfNeeded(from: mediaURL, toDirectory: documentsURL) {
-                        importedCount += 1
-                    }
-                }
-            } else {
-                let ext = externalURL.pathExtension.lowercased()
-                if supportedExtensions.contains(ext) {
-                    if copyMediaFileIfNeeded(from: externalURL, toDirectory: documentsURL) {
-                        importedCount += 1
-                    }
-                }
-            }
-        }
-
-        return importedCount
-    }
-
-    private func copyMediaFileIfNeeded(from sourceURL: URL, toDirectory documentsURL: URL) -> Bool {
-        let fileManager = FileManager.default
-        let standardizedSource = sourceURL.standardizedFileURL
-        let standardizedDocs = documentsURL.standardizedFileURL
-
-        // If the file is already inside the sandboxed Documents folder or one of its subfolders, no copy needed
-        if standardizedSource.path.hasPrefix(standardizedDocs.path) {
-            return true
-        }
-
-        let destinationURL = documentsURL.appendingPathComponent(sourceURL.lastPathComponent)
-        if fileManager.fileExists(atPath: destinationURL.path) {
-            try? fileManager.removeItem(at: destinationURL)
-        }
-
-        do {
-            try fileManager.copyItem(at: sourceURL, to: destinationURL)
-            return true
-        } catch {
-            return false
-        }
-    }
-
     /// Recursively enumerates `rootURL` and all nested subfolders for supported audio/video files.
     private func discoverMediaURLs(in rootURL: URL) -> [URL] {
-        let keys: [URLResourceKey] = [.isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey, .nameKey]
+        let keys: [URLResourceKey] = [.isRegularFileKey, .isDirectoryKey, .nameKey]
         guard let enumerator = FileManager.default.enumerator(
-            at: rootURL.resolvingSymlinksInPath(),
+            at: rootURL,
             includingPropertiesForKeys: keys,
             options: [.skipsHiddenFiles, .skipsPackageDescendants]
         ) else {
@@ -109,11 +58,9 @@ actor MediaLibraryService {
         }
 
         var results: [URL] = []
-        for case let rawURL as URL in enumerator {
-            let fileURL = rawURL.resolvingSymlinksInPath()
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: fileURL.path, isDirectory: &isDirectory),
-                  !isDirectory.boolValue else {
+        for case let fileURL as URL in enumerator {
+            if let values = try? fileURL.resourceValues(forKeys: [.isDirectoryKey]),
+               values.isDirectory == true {
                 continue
             }
 
@@ -188,7 +135,7 @@ actor MediaLibraryService {
         }
 
         return MediaItem(
-            id: url.standardizedFileURL.path,
+            id: url.lastPathComponent + "_" + url.deletingLastPathComponent().lastPathComponent,
             url: url,
             kind: kind,
             title: title,

@@ -94,6 +94,10 @@ struct ClassicPlayerRootView: View {
             )
             .ignoresSafeArea()
         }
+        .onOpenURL { incomingURL in
+            let saved = DocumentImporterSheet.Coordinator.persistFilesToDocuments([incomingURL])
+            viewModel.handleImportedDocuments(urls: saved)
+        }
     }
 
     /// Physical-style top Hold slider switch so the user can lock/unlock the Click Wheel at any time.

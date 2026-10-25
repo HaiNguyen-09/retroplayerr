@@ -14,7 +14,7 @@ final class PlayerViewModel: ObservableObject {
     @Published var isScrubbingInNowPlaying: Bool = false
     @Published var isPresentingDocumentPicker: Bool = false
 
-    @AppStorage("wheelSensitivity") var wheelSensitivityRaw: String = WheelSensitivity.medium.rawValue {
+    @AppStorage("wheelSensitivity") var wheelSensitivityRaw: String = WheelSensitivity.deg60.rawValue {
         didSet {
             objectWillChange.send()
             buildMenuStackPreservingSelection()
@@ -22,7 +22,7 @@ final class PlayerViewModel: ObservableObject {
     }
 
     var wheelSensitivity: WheelSensitivity {
-        get { WheelSensitivity(rawValue: wheelSensitivityRaw) ?? .medium }
+        get { WheelSensitivity(rawValue: wheelSensitivityRaw) ?? .deg60 }
         set { wheelSensitivityRaw = newValue.rawValue }
     }
 
@@ -79,10 +79,29 @@ final class PlayerViewModel: ObservableObject {
 
     func handleImportedDocuments(urls: [URL]) {
         isPresentingDocumentPicker = false
-        guard !urls.isEmpty else { return }
+        let importedNames = Set(urls.map { $0.lastPathComponent.lowercased() })
         Task {
-            await MediaLibraryService.shared.importFilesToDocuments(urls)
             await reloadLibrary()
+            guard !allMedia.isEmpty else { return }
+
+            // If user imported from Root Menu, automatically open the Documents list and highlight the imported file
+            let rows = makeMediaRows(for: allMedia, emptyLabel: "No Files in Documents")
+            var targetIndex = 0
+            if let matchedIdx = allMedia.firstIndex(where: { importedNames.contains($0.url.lastPathComponent.lowercased()) }) {
+                targetIndex = matchedIdx
+            }
+
+            if menuStack.count == 1 {
+                let page = MenuPage(title: "Documents", rows: rows, selectedIndex: targetIndex)
+                withAnimation(.easeInOut(duration: 0.21)) {
+                    menuStack.append(page)
+                }
+            } else if !menuStack.isEmpty {
+                let lastIdx = menuStack.count - 1
+                if menuStack[lastIdx].rows.indices.contains(targetIndex) {
+                    menuStack[lastIdx].selectedIndex = targetIndex
+                }
+            }
         }
     }
 
@@ -598,7 +617,7 @@ final class PlayerViewModel: ObservableObject {
                 title: "Sensitivity Preset",
                 showsChevron: true,
                 previewTitle: "Wheel Presets",
-                previewSubtitle: "Low 36° / Med 28° / High 20°",
+                previewSubtitle: "Standard 60° / Low 75° / High 45°",
                 action: .pushSubmenu(title: "Sensitivity", items: makeSensitivitySubmenuRows())
             ),
             MenuRowItem(

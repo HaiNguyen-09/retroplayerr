@@ -8,20 +8,21 @@ struct ClickWheelView: View {
     let onNextPress: () -> Void
     let onCenterPress: () -> Void
 
-    @AppStorage("wheelSensitivity") private var wheelSensitivityRaw: String = WheelSensitivity.medium.rawValue
+    @AppStorage("wheelSensitivity") private var wheelSensitivityRaw: String = WheelSensitivity.deg60.rawValue
 
     private let wheelDiameter: CGFloat = 240.0
     private let wheelRadius: CGFloat = 120.0
     private let centerButtonDiameter: CGFloat = 88.0
     private let centerButtonRadius: CGFloat = 44.0
 
-    /// Active degree threshold per step (Low: 36.0°, Medium: 28.0°, High: 20.0°).
+    /// Active degree threshold per step — defaults to 60.0° per step.
     private var stepThresholdDegrees: Double {
-        (WheelSensitivity(rawValue: wheelSensitivityRaw) ?? .medium).degreesPerStep
+        (WheelSensitivity(rawValue: wheelSensitivityRaw) ?? .deg60).degreesPerStep
     }
 
     @State private var previousAngle: Double?
     @State private var accumulatedDegrees: Double = 0.0
+    @State private var isRingGestureActive: Bool = false
     @State private var didTriggerRotation: Bool = false
     @State private var pressedZone: WheelZone?
 
@@ -135,49 +136,72 @@ struct ClickWheelView: View {
         let dy = value.location.y - center.y
         let touchRadius = hypot(dx, dy)
 
-        if pressedZone == nil && !didTriggerRotation {
-            pressedZone = detectZone(dx: dx, dy: dy, radius: touchRadius)
+        // On initial touch-down, check whether the touch started on the click wheel ring (44pt ... 120pt)
+        if previousAngle == nil && !isRingGestureActive {
+            let startDx = value.startLocation.x - center.x
+            let startDy = value.startLocation.y - center.y
+            let startRadius = hypot(startDx, startDy)
+
+            if pressedZone == nil {
+                pressedZone = detectZone(dx: startDx, dy: startDy, radius: startRadius)
+            }
+
+            // Reject drag gestures if initial touch radius is < 44pt (center button) or > 120pt (outside wheel)
+            guard startRadius >= centerButtonRadius && startRadius <= wheelRadius else {
+                return
+            }
+
+            isRingGestureActive = true
+            previousAngle = atan2(startDy, startDx) * 180.0 / .pi
         }
 
-        // Reject drag gestures if touch radius is < 44pt (inside center button) or > 120pt (outside the wheel)
-        guard touchRadius >= centerButtonRadius && touchRadius <= wheelRadius else {
+        // Keep tracking finger smoothly while on the wheel; reject if finger moves deep into center or far outside
+        guard isRingGestureActive, touchRadius >= 30.0 && touchRadius <= 145.0 else {
             previousAngle = nil
             return
         }
 
-        // Calculate angular position in degrees using atan2(y - center.y, x - center.x) * 180 / π
         let currentAngle = atan2(dy, dx) * 180.0 / .pi
 
-        if let prev = previousAngle {
-            var delta = currentAngle - prev
-            // Seamless wrap-around across the -180° / +180° discontinuity
-            if delta > 180.0 {
-                delta -= 360.0
-            } else if delta < -180.0 {
-                delta += 360.0
-            }
+        guard let prev = previousAngle else {
+            previousAngle = currentAngle
+            return
+        }
 
-            // Ignore micro-jitter and reset accumulator on direction reversal for deliberate tactile control
-            if abs(delta) < 0.15 {
-                return
-            }
-            if (accumulatedDegrees > 0 && delta < -1.5) || (accumulatedDegrees < 0 && delta > 1.5) {
+        // Always update previousAngle to currentAngle so delta is strictly the incremental frame movement
+        previousAngle = currentAngle
+
+        var delta = currentAngle - prev
+        if delta > 180.0 {
+            delta -= 360.0
+        } else if delta < -180.0 {
+            delta += 360.0
+        }
+
+        // Clear button highlight once user starts rotating the wheel
+        if abs(accumulatedDegrees + delta) > 6.0 {
+            pressedZone = nil
+        }
+
+        // If user reverses direction of rotation, reset opposite-sign remainder so direction change is immediate
+        if (accumulatedDegrees > 0 && delta < -0.5) || (accumulatedDegrees < 0 && delta > 0.5) {
+            accumulatedDegrees = 0.0
+        }
+
+        accumulatedDegrees += delta
+        let threshold = stepThresholdDegrees // 60.0° by default
+
+        // Fire 1 step each time the finger completes a 60° arc
+        if abs(accumulatedDegrees) >= threshold {
+            let direction = accumulatedDegrees > 0 ? 1 : -1
+            accumulatedDegrees -= Double(direction) * threshold
+            // Prevent multiple burst steps in a single touch sample
+            if abs(accumulatedDegrees) >= threshold {
                 accumulatedDegrees = 0.0
             }
-
-            accumulatedDegrees += delta
-            let threshold = stepThresholdDegrees
-
-            // Trigger a menu navigation step every `threshold` degrees (36° Low, 28° Medium, 20° High)
-            while abs(accumulatedDegrees) >= threshold {
-                let direction = accumulatedDegrees > 0 ? 1 : -1
-                accumulatedDegrees -= Double(direction) * threshold
-                didTriggerRotation = true
-                pressedZone = nil
-                onRotateStep(direction)
-            }
-        } else {
-            previousAngle = currentAngle
+            didTriggerRotation = true
+            pressedZone = nil
+            onRotateStep(direction)
         }
     }
 
@@ -185,6 +209,7 @@ struct ClickWheelView: View {
         defer {
             previousAngle = nil
             accumulatedDegrees = 0.0
+            isRingGestureActive = false
             didTriggerRotation = false
             pressedZone = nil
         }
@@ -192,7 +217,7 @@ struct ClickWheelView: View {
         guard !didTriggerRotation else { return }
 
         let dragDistance = hypot(value.translation.width, value.translation.height)
-        guard dragDistance < 16.0 else { return }
+        guard dragDistance < 18.0 else { return }
 
         let center = CGPoint(x: wheelRadius, y: wheelRadius)
         let dx = value.location.x - center.x
