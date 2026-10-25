@@ -45,6 +45,7 @@ struct LCDDisplayView: View {
                 case .splitBrowser:
                     VStack(spacing: 0) {
                         RetroStatusBarView(
+                            leftTitle: viewModel.statusBarLeftTitle,
                             customPlayerName: viewModel.customPlayerName,
                             playbackState: viewModel.playbackEngine.playbackState,
                             isHoldLocked: viewModel.isHoldLocked,
@@ -67,6 +68,7 @@ struct LCDDisplayView: View {
                 case .audioNowPlaying:
                     VStack(spacing: 0) {
                         RetroStatusBarView(
+                            leftTitle: viewModel.statusBarLeftTitle,
                             customPlayerName: viewModel.customPlayerName,
                             playbackState: viewModel.playbackEngine.playbackState,
                             isHoldLocked: viewModel.isHoldLocked,

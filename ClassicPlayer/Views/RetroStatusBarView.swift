@@ -15,8 +15,8 @@ struct MarqueePlayerNameView: View {
     @State private var phaseStartDate: Date = Date()
 
     private let gap: CGFloat = 28.0
-    private let speedPointsPerSecond: Double = 28.0
-    private let pauseSeconds: Double = 1.4
+    private let speedPointsPerSecond: Double = 26.0
+    private let pauseSeconds: Double = 1.5
 
     var body: some View {
         GeometryReader { geo in
@@ -24,7 +24,7 @@ struct MarqueePlayerNameView: View {
             let needsMarquee = textWidth > containerWidth && containerWidth > 10
 
             ZStack(alignment: needsMarquee ? .leading : .center) {
-                // Hidden sizer to accurately measure the untruncated Unicode/emoji string width
+                // Hidden sizer to measure untruncated string width
                 Text(text)
                     .font(.system(size: 11, weight: .regular, design: .default))
                     .fixedSize(horizontal: true, vertical: false)
@@ -82,6 +82,7 @@ struct MarqueePlayerNameView: View {
 }
 
 struct RetroStatusBarView: View {
+    let leftTitle: String
     let customPlayerName: String
     let playbackState: PlaybackState
     let isHoldLocked: Bool
@@ -92,37 +93,51 @@ struct RetroStatusBarView: View {
     }
 
     var body: some View {
-        ZStack {
-            // Metallic gradient running from #E8E8E8 at top to #C4C4C4 at bottom
-            LinearGradient(
-                colors: [Color(hex: 0xE8E8E8), Color(hex: 0xC4C4C4)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+        GeometryReader { geo in
+            // Symmetric side reservation (84pt left, 84pt right) guarantees the center container
+            // is always mathematically centered on the full LCD width and never overlaps left/right items.
+            let sideReservedWidth: CGFloat = 84.0
+            let centerBandWidth = max(40.0, geo.size.width - (sideReservedWidth * 2.0))
 
-            HStack(spacing: 6) {
-                // Left: Static text "Now Playing" in 11pt Helvetica/System Bold (#222222)
-                Text("Now Playing")
-                    .font(.system(size: 11, weight: .bold, design: .default))
-                    .foregroundColor(Color(hex: 0x222222))
-                    .fixedSize(horizontal: true, vertical: false)
-                    .padding(.leading, 6)
+            ZStack {
+                // Metallic gradient running from #E8E8E8 at top to #C4C4C4 at bottom
+                LinearGradient(
+                    colors: [Color(hex: 0xE8E8E8), Color(hex: 0xC4C4C4)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
 
-                // Center: Custom player name (static or marquee scrolling, clipped so it never collides)
-                MarqueePlayerNameView(text: customPlayerName)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
+                // Left & Right anchored status items
+                HStack(spacing: 0) {
+                    // Left: "Now Playing" (only when actively playing) or current category title
+                    Text(leftTitle)
+                        .font(.system(size: 11, weight: .bold, design: .default))
+                        .foregroundColor(Color(hex: 0x222222))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(width: sideReservedWidth - 6.0, alignment: .leading)
+                        .padding(.leading, 6)
 
-                // Right: Lock icon (if on hold) + Cyan/sky blue play triangle (#0284C7) + Glossy Battery Capsule
-                HStack(spacing: 5) {
-                    if isHoldLocked {
-                        RetroLockGlyph()
+                    Spacer(minLength: 0)
+
+                    // Right: Lock icon (if on hold) + Cyan/sky blue play triangle (#0284C7) + Glossy Battery Capsule
+                    HStack(spacing: 5) {
+                        if isHoldLocked {
+                            RetroLockGlyph()
+                        }
+                        if playbackState != .stopped {
+                            RetroStatusPlayIndicator(state: playbackState)
+                        }
+                        RetroBatteryGlyph(level: batteryLevel)
                     }
-                    RetroStatusPlayIndicator(state: playbackState)
-                    RetroBatteryGlyph(level: batteryLevel)
+                    .frame(width: sideReservedWidth - 6.0, alignment: .trailing)
+                    .padding(.trailing, 6)
                 }
-                .fixedSize(horizontal: true, vertical: false)
-                .padding(.trailing, 6)
+
+                // Center: Custom Player Name strictly centered relative to the entire LCD width
+                MarqueePlayerNameView(text: customPlayerName)
+                    .frame(width: centerBandWidth, height: geo.size.height)
+                    .clipped()
             }
         }
         .frame(height: 20)

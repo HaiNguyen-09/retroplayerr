@@ -79,6 +79,20 @@ final class PlayerViewModel: ObservableObject {
         menuStack.last ?? MenuPage(title: "Player", rows: [])
     }
 
+    var statusBarLeftTitle: String {
+        if playbackEngine.playbackState == .playing {
+            if screenMode == .audioNowPlaying || menuStack.count <= 1 {
+                return "Now Playing"
+            }
+            return currentPage.title
+        } else {
+            if screenMode == .splitBrowser && menuStack.count > 1 {
+                return currentPage.title
+            }
+            return ""
+        }
+    }
+
     var previewImageForCurrentSelection: UIImage? {
         if let rowImage = currentPage.selectedRow?.previewImage {
             return rowImage

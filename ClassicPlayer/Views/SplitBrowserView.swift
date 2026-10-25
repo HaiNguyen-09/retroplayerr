@@ -8,10 +8,16 @@ struct SplitBrowserView: View {
     let previewTitle: String?
     let previewSubtitle: String?
 
-    @State private var activePage: MenuPage?
-    @State private var outgoingPage: MenuPage?
-    @State private var activeOffsetX: CGFloat = 0
-    @State private var outgoingOffsetX: CGFloat = 0
+    @State private var currentBasePage: MenuPage?
+    @State private var underneathParentPage: MenuPage?
+    @State private var outgoingTopSubmenuPage: MenuPage?
+
+    @State private var parallaxOffsetX: CGFloat = 0
+    @State private var dimmingOpacity: Double = 0.0
+    @State private var topSlideOffsetX: CGFloat = 0
+    @State private var unmountTask: Task<Void, Never>?
+
+    private let transitionDuration: Double = 0.23
 
     private var onePixel: CGFloat {
         1.0 / UIScreen.main.scale
@@ -20,63 +26,75 @@ struct SplitBrowserView: View {
     var body: some View {
         GeometryReader { geo in
             let halfWidth = geo.size.width / 2.0
-            let currentDisplayed = activePage ?? page
+            let activePage = currentBasePage ?? page
 
             HStack(spacing: 0) {
-                // Left 50%: Synchronized Left/Right Sliding Menu Column (Strictly Clipped)
+                // Left 50%: Parallax Layered Push/Pop Menu Column (Strictly Clipped)
                 ZStack {
                     Color.white
 
-                    if let outgoing = outgoingPage {
-                        leftMenuListPane(for: outgoing)
-                            .frame(width: halfWidth, height: geo.size.height)
-                            .offset(x: outgoingOffsetX)
-                    }
-
-                    leftMenuListPane(for: currentDisplayed)
+                    if let parentUnderneath = underneathParentPage {
+                        // Forward Push: Parent menu underneath sliding slower left with 0.0 -> 0.4 dimming overlay
+                        ZStack {
+                            lazyMenuListPane(for: parentUnderneath)
+                            Color.black
+                                .opacity(dimmingOpacity)
+                                .allowsHitTesting(false)
+                        }
                         .frame(width: halfWidth, height: geo.size.height)
-                        .offset(x: activeOffsetX)
+                        .offset(x: parallaxOffsetX)
+                        .zIndex(0)
+
+                        // Child submenu sliding in from right to left (+halfWidth -> 0) on top
+                        lazyMenuListPane(for: activePage)
+                            .frame(width: halfWidth, height: geo.size.height)
+                            .background(Color.white)
+                            .shadow(color: .black.opacity(0.18), radius: 3, x: -1, y: 0)
+                            .offset(x: topSlideOffsetX)
+                            .zIndex(1)
+                    } else if let outgoingTop = outgoingTopSubmenuPage {
+                        // Backward Pop: Parent menu underneath (-0.32*halfWidth -> 0) with dimming fading out (0.4 -> 0.0)
+                        ZStack {
+                            lazyMenuListPane(for: activePage)
+                            Color.black
+                                .opacity(dimmingOpacity)
+                                .allowsHitTesting(false)
+                        }
+                        .frame(width: halfWidth, height: geo.size.height)
+                        .offset(x: parallaxOffsetX)
+                        .zIndex(0)
+
+                        // Outgoing submenu sliding out from left to right (0 -> +halfWidth) on top
+                        lazyMenuListPane(for: outgoingTop)
+                            .frame(width: halfWidth, height: geo.size.height)
+                            .background(Color.white)
+                            .shadow(color: .black.opacity(0.18), radius: 3, x: -1, y: 0)
+                            .offset(x: topSlideOffsetX)
+                            .zIndex(1)
+                    } else {
+                        // At rest: Only the single active menu is mounted in the render tree
+                        lazyMenuListPane(for: activePage)
+                            .frame(width: halfWidth, height: geo.size.height)
+                            .zIndex(1)
+                    }
                 }
                 .frame(width: halfWidth, height: geo.size.height)
                 .clipped()
                 .zIndex(0)
                 .onAppear {
-                    activePage = page
-                    activeOffsetX = 0
+                    currentBasePage = page
                 }
                 .onChange(of: page) { newPage in
-                    guard let current = activePage else {
-                        activePage = newPage
-                        return
-                    }
-
-                    if current.id != newPage.id {
-                        // Synchronized slide animation:
-                        // Forward (drill in): right-to-left (+halfWidth -> 0, 0 -> -halfWidth)
-                        // Backward (MENU): left-to-right (-halfWidth -> 0, 0 -> +halfWidth)
-                        let isForward = (navigationDirection == .forward)
-                        outgoingPage = current
-                        activePage = newPage
-                        outgoingOffsetX = 0
-                        activeOffsetX = isForward ? halfWidth : -halfWidth
-
-                        withAnimation(.easeInOut(duration: 0.21)) {
-                            outgoingOffsetX = isForward ? -halfWidth : halfWidth
-                            activeOffsetX = 0
-                        }
-                    } else {
-                        // Same page (e.g. wheel selection index or inline setting value updated)
-                        activePage = newPage
-                    }
+                    handlePageChange(to: newPage, halfWidth: halfWidth)
                 }
 
-                // 1px Center Split Divider (Stationary)
+                // 1px Center Split Divider (Completely Stationary)
                 Rectangle()
                     .fill(Color(hex: 0xC2C4C8))
                     .frame(width: onePixel, height: geo.size.height)
                     .zIndex(1)
 
-                // Right 50%: Anchored Static Preview Pane (Artwork + Reflection + Metadata)
+                // Right 50%: Anchored Static Preview Pane (Completely Stationary & Unaffected)
                 rightPreviewPane(width: halfWidth - onePixel, height: geo.size.height)
                     .frame(width: halfWidth - onePixel, height: geo.size.height)
                     .clipped()
@@ -89,10 +107,88 @@ struct SplitBrowserView: View {
         }
     }
 
-    private func leftMenuListPane(for menuPage: MenuPage) -> some View {
+    private func handlePageChange(to newPage: MenuPage, halfWidth: CGFloat) {
+        guard let previousPage = currentBasePage else {
+            currentBasePage = newPage
+            return
+        }
+
+        // If still on the same menu page (e.g. Click Wheel scrolling or inline setting toggle), update in place
+        guard previousPage.id != newPage.id else {
+            currentBasePage = newPage
+            return
+        }
+
+        unmountTask?.cancel()
+        let parallaxDistance = -halfWidth * 0.32
+
+        if navigationDirection == .forward {
+            // Drill into submenu: parent underneath slides 0 -> -32% with 0 -> 0.4 dim; child slides +100% -> 0
+            var initialTransaction = Transaction()
+            initialTransaction.disablesAnimations = true
+            withTransaction(initialTransaction) {
+                outgoingTopSubmenuPage = nil
+                underneathParentPage = previousPage
+                currentBasePage = newPage
+                parallaxOffsetX = 0
+                dimmingOpacity = 0.0
+                topSlideOffsetX = halfWidth
+            }
+
+            withAnimation(.easeInOut(duration: transitionDuration)) {
+                parallaxOffsetX = parallaxDistance
+                dimmingOpacity = 0.4
+                topSlideOffsetX = 0
+            }
+
+            unmountTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64((transitionDuration + 0.015) * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                var cleanup = Transaction()
+                cleanup.disablesAnimations = true
+                withTransaction(cleanup) {
+                    underneathParentPage = nil
+                    parallaxOffsetX = 0
+                    dimmingOpacity = 0.0
+                }
+            }
+        } else {
+            // Return to parent menu (MENU): parent underneath slides -32% -> 0 with 0.4 -> 0 dim; submenu slides 0 -> +100%
+            var initialTransaction = Transaction()
+            initialTransaction.disablesAnimations = true
+            withTransaction(initialTransaction) {
+                underneathParentPage = nil
+                outgoingTopSubmenuPage = previousPage
+                currentBasePage = newPage
+                parallaxOffsetX = parallaxDistance
+                dimmingOpacity = 0.4
+                topSlideOffsetX = 0
+            }
+
+            withAnimation(.easeInOut(duration: transitionDuration)) {
+                parallaxOffsetX = 0
+                dimmingOpacity = 0.0
+                topSlideOffsetX = halfWidth
+            }
+
+            unmountTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64((transitionDuration + 0.015) * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                var cleanup = Transaction()
+                cleanup.disablesAnimations = true
+                withTransaction(cleanup) {
+                    outgoingTopSubmenuPage = nil
+                    topSlideOffsetX = 0
+                }
+            }
+        }
+    }
+
+    /// Lazy-loaded menu list using LazyVStack + ScrollViewReader so only visible rows in the LCD viewport are allocated.
+    private func lazyMenuListPane(for menuPage: MenuPage) -> some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 0) {
+                LazyVStack(spacing: 0) {
                     ForEach(Array(menuPage.rows.enumerated()), id: \.element.id) { index, row in
                         let isSelected = (index == menuPage.selectedIndex)
                         menuRowView(row: row, isSelected: isSelected)
@@ -101,11 +197,14 @@ struct SplitBrowserView: View {
                 }
             }
             .background(Color.white)
+            .onAppear {
+                if let selectedRow = menuPage.selectedRow {
+                    proxy.scrollTo(selectedRow.id, anchor: nil)
+                }
+            }
             .onChange(of: menuPage.selectedIndex) { _ in
                 if let selectedRow = menuPage.selectedRow {
-                    withAnimation(.linear(duration: 0.05)) {
-                        proxy.scrollTo(selectedRow.id, anchor: nil)
-                    }
+                    proxy.scrollTo(selectedRow.id, anchor: nil)
                 }
             }
         }
