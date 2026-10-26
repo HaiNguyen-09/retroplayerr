@@ -597,16 +597,7 @@ final class PlayerViewModel: ObservableObject {
             )
         }
 
-        return [
-            MenuRowItem(
-                id: "music_cover_flow",
-                title: "Cover Flow",
-                showsChevron: true,
-                previewArtworkData: firstArt,
-                previewTitle: "Cover Flow",
-                previewSubtitle: "3D Album Browser",
-                action: .openCoverFlow
-            ),
+        var rows: [MenuRowItem] = [
             MenuRowItem(
                 id: "music_all_songs",
                 title: "All Songs",
@@ -644,33 +635,35 @@ final class PlayerViewModel: ObservableObject {
                 )
             ),
             MenuRowItem(
-                id: "music_import",
-                title: "Import Files",
+                id: "music_cover_flow",
+                title: "Cover Flow",
                 showsChevron: true,
-                previewArtworkData: nil,
-                previewTitle: "Import Audio",
-                previewSubtitle: ".mp3, .m4a, .wav, .flac",
-                action: .importFiles
+                previewArtworkData: firstArt,
+                previewTitle: "Cover Flow",
+                previewSubtitle: "3D Album Browser",
+                action: .openCoverFlow
             )
         ]
-    }
 
-    private func makeVideoMenuRows(videoItems: [MediaItem]) -> [MenuRowItem] {
-        var rows = makeMediaRows(for: videoItems, emptyLabel: "No Video Files")
-        if !videoItems.isEmpty {
+        if audioItems.isEmpty {
             rows.append(
                 MenuRowItem(
-                    id: "video_import",
+                    id: "music_import",
                     title: "Import Files",
                     showsChevron: true,
                     previewArtworkData: nil,
-                    previewTitle: "Import Videos",
-                    previewSubtitle: ".mp4, .mov",
+                    previewTitle: "Import Audio",
+                    previewSubtitle: ".mp3, .m4a, .wav, .flac",
                     action: .importFiles
                 )
             )
         }
+
         return rows
+    }
+
+    private func makeVideoMenuRows(videoItems: [MediaItem]) -> [MenuRowItem] {
+        return makeMediaRows(for: videoItems, emptyLabel: "No Video Files")
     }
 
     private func makeDocumentsMenuRows() -> [MenuRowItem] {
@@ -791,8 +784,8 @@ final class PlayerViewModel: ObservableObject {
                 title: "Color Mode",
                 valueText: chassisTheme.displayName,
                 showsChevron: false,
-                previewTitle: "Player Finish",
-                previewSubtitle: "Light / Gray / Dark Gray",
+                previewTitle: "Outer shell",
+                previewSubtitle: chassisTheme.displayName,
                 action: .cycleChassisTheme
             ),
             MenuRowItem(

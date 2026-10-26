@@ -122,8 +122,6 @@ struct ClassicPlayerRootView: View {
             Button("Save") {
                 viewModel.saveDraftPlayerName()
             }
-        } message: {
-            Text("Enter a custom name up to 50 characters (Unicode & emojis supported).")
         }
         .onOpenURL { incomingURL in
             let saved = DocumentImporterSheet.Coordinator.persistFilesToDocuments([incomingURL])
