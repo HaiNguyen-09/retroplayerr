@@ -1,6 +1,7 @@
 # Retronome 🎧
 
 **Retronome** is an offline retro click-wheel media player for iOS. It faithfully recreates the authentic 6th-generation physical player experience!
+Fully vibe-coded by Gemini 4 Argon Medium.
 
 ---
 
