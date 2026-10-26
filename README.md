@@ -31,8 +31,11 @@
   - **Gray**: Space gray anodized chassis with dark wheel styling.
   - **Dark Gray**: Deep slate / charcoal finish.
 - **Custom Player Name**: Set an in-app player name (up to 50 characters, full Unicode and emoji support) rendered in the status bar header.
-<img src="preview/light.PNG" width="260" /> <img src="preview/grey.PNG" width="260" /> <img src="preview/darkgrey.PNG" width="260" /> 
-
+<p align="center">
+  <img src="preview/light.PNG" width="220" />
+  <img src="preview/grey.PNG" width="220" />
+  <img src="preview/darkgrey.PNG" width="220" />
+</p>
 ---
 
 ## 🛠️ Requirements
