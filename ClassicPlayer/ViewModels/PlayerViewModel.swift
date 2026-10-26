@@ -10,7 +10,6 @@ final class PlayerViewModel: ObservableObject {
     @Published private(set) var navigationDirection: MenuNavigationDirection = .forward
     @Published var screenMode: ActiveScreenMode = .splitBrowser
     @Published var isHoldLocked: Bool = false
-    @Published var isClickerEnabled: Bool = true
     @Published var batteryLevel: Float = 0.85
     @Published var isPresentingDocumentPicker: Bool = false
     @Published var isPresentingPlayerNameAlert: Bool = false
@@ -20,6 +19,14 @@ final class PlayerViewModel: ObservableObject {
     @Published var coverFlowSelectedIndex: Int = 0
     @Published var isCoverFlowFlipped: Bool = false
     @Published var coverFlowTrackIndex: Int = 0
+
+    @AppStorage("isClickerEnabled") var isClickerEnabled: Bool = true {
+        didSet {
+            FeedbackManager.shared.isClickerEnabled = isClickerEnabled
+            objectWillChange.send()
+            buildMenuStackPreservingSelection()
+        }
+    }
 
     @AppStorage("customPlayerName") var customPlayerName: String = "My Player" {
         didSet {
@@ -69,6 +76,7 @@ final class PlayerViewModel: ObservableObject {
     private var directoryFileDescriptor: CInt = -1
 
     init() {
+        FeedbackManager.shared.isClickerEnabled = isClickerEnabled
         playbackEngine.setShuffleEnabled(isShuffleEnabled)
         setupBatteryMonitoring()
         bindPlaybackEngine()
@@ -192,7 +200,7 @@ final class PlayerViewModel: ObservableObject {
             await reloadLibrary()
             guard !allMedia.isEmpty else { return }
 
-            let rows = makeMediaRows(for: allMedia, emptyLabel: "No Files in Documents")
+            let rows = makeDocumentsMenuRows()
             var targetIndex = 0
             if let matchedIdx = allMedia.firstIndex(where: { importedNames.contains($0.url.lastPathComponent.lowercased()) }) {
                 targetIndex = matchedIdx
@@ -227,7 +235,7 @@ final class PlayerViewModel: ObservableObject {
             let nextSelection = min(max(0, currentSelection + (direction > 0 ? 1 : -1)), rowCount - 1)
             if nextSelection != currentSelection {
                 menuStack[lastIdx].selectedIndex = nextSelection
-                FeedbackManager.shared.triggerWheelTick()
+                FeedbackManager.shared.playWheelTick()
             }
 
         case .coverFlow:
@@ -242,27 +250,27 @@ final class PlayerViewModel: ObservableObject {
                 let nextTrack = min(max(0, coverFlowTrackIndex + (direction > 0 ? 1 : -1)), tracks.count - 1)
                 if nextTrack != coverFlowTrackIndex {
                     coverFlowTrackIndex = nextTrack
-                    FeedbackManager.shared.triggerWheelTick()
+                    FeedbackManager.shared.playWheelTick()
                 }
             } else {
                 // Step through 3D album covers
                 let nextAlbum = min(max(0, coverFlowSelectedIndex + (direction > 0 ? 1 : -1)), albums.count - 1)
                 if nextAlbum != coverFlowSelectedIndex {
                     coverFlowSelectedIndex = nextAlbum
-                    FeedbackManager.shared.triggerWheelTick()
+                    FeedbackManager.shared.playWheelTick()
                 }
             }
 
         case .audioNowPlaying, .videoFullCanvas:
             let delta = Double(direction) * 5.0
             playbackEngine.seek(by: delta)
-            FeedbackManager.shared.triggerWheelTick()
+            FeedbackManager.shared.playWheelTick()
         }
     }
 
     func handleMenuButton() {
         guard !isHoldLocked else { return }
-        FeedbackManager.shared.triggerButtonPress()
+        FeedbackManager.shared.playButtonPress()
 
         if screenMode == .coverFlow {
             if isCoverFlowFlipped {
@@ -290,7 +298,7 @@ final class PlayerViewModel: ObservableObject {
 
     func handleCenterSelectButton() {
         guard !isHoldLocked else { return }
-        FeedbackManager.shared.triggerButtonPress()
+        FeedbackManager.shared.playButtonPress()
 
         switch screenMode {
         case .splitBrowser:
@@ -324,7 +332,7 @@ final class PlayerViewModel: ObservableObject {
 
     func handlePlayPauseButton() {
         guard !isHoldLocked else { return }
-        FeedbackManager.shared.triggerButtonPress()
+        FeedbackManager.shared.playButtonPress()
 
         if playbackEngine.currentItem == nil && !allMedia.isEmpty {
             let firstItem = allMedia[0]
@@ -337,7 +345,7 @@ final class PlayerViewModel: ObservableObject {
 
     func handleNextButton() {
         guard !isHoldLocked else { return }
-        FeedbackManager.shared.triggerButtonPress()
+        FeedbackManager.shared.playButtonPress()
         playbackEngine.nextTrack()
         if let current = playbackEngine.currentItem, screenMode == .audioNowPlaying || screenMode == .videoFullCanvas {
             transitionToActivePlayerScreen(for: current)
@@ -346,7 +354,7 @@ final class PlayerViewModel: ObservableObject {
 
     func handlePreviousButton() {
         guard !isHoldLocked else { return }
-        FeedbackManager.shared.triggerButtonPress()
+        FeedbackManager.shared.playButtonPress()
         playbackEngine.previousTrack()
         if let current = playbackEngine.currentItem, screenMode == .audioNowPlaying || screenMode == .videoFullCanvas {
             transitionToActivePlayerScreen(for: current)
@@ -355,7 +363,7 @@ final class PlayerViewModel: ObservableObject {
 
     func toggleHoldSwitch() {
         isHoldLocked.toggle()
-        FeedbackManager.shared.triggerButtonPress()
+        FeedbackManager.shared.playButtonPress()
         buildMenuStackPreservingSelection()
     }
 
@@ -477,7 +485,7 @@ final class PlayerViewModel: ObservableObject {
             case "Videos":
                 menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeVideoMenuRows(videoItems: videoItems), selectedIndex: selected)
             case "Documents":
-                menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeMediaRows(for: allMedia, emptyLabel: "No Files in Documents"), selectedIndex: selected)
+                menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeDocumentsMenuRows(), selectedIndex: selected)
             default:
                 break
             }
@@ -517,16 +525,7 @@ final class PlayerViewModel: ObservableObject {
                 previewArtworkData: firstAnyArtwork,
                 previewTitle: "Documents",
                 previewSubtitle: "\(allMedia.count) Local Files",
-                action: .pushSubmenu(title: "Documents", items: makeMediaRows(for: allMedia, emptyLabel: "No Files in Documents"))
-            ),
-            MenuRowItem(
-                id: "root_import",
-                title: "Import Files",
-                showsChevron: true,
-                previewArtworkData: nil,
-                previewTitle: "Import Files",
-                previewSubtitle: "Add from iOS Files",
-                action: .importFiles
+                action: .pushSubmenu(title: "Documents", items: makeDocumentsMenuRows())
             ),
             MenuRowItem(
                 id: "root_shuffle",
@@ -674,6 +673,24 @@ final class PlayerViewModel: ObservableObject {
         return rows
     }
 
+    private func makeDocumentsMenuRows() -> [MenuRowItem] {
+        var rows = makeMediaRows(for: allMedia, emptyLabel: "No Files in Documents")
+        if !allMedia.isEmpty {
+            rows.append(
+                MenuRowItem(
+                    id: "documents_import",
+                    title: "Import Files",
+                    showsChevron: true,
+                    previewArtworkData: nil,
+                    previewTitle: "Import Files",
+                    previewSubtitle: "Add from iOS Files",
+                    action: .importFiles
+                )
+            )
+        }
+        return rows
+    }
+
     private func makeMediaRows(for items: [MediaItem], emptyLabel: String) -> [MenuRowItem] {
         guard !items.isEmpty else {
             return makeEmptyPlaceholderRows(emptyLabel)
@@ -723,10 +740,10 @@ final class PlayerViewModel: ObservableObject {
             ),
             MenuRowItem(
                 id: "about_model",
-                title: "ClassicPlayer",
+                title: "Retronome",
                 valueText: "1.0",
                 showsChevron: false,
-                previewTitle: "ClassicPlayer",
+                previewTitle: "Retronome",
                 previewSubtitle: "Version 1.0",
                 action: .rescanLibrary
             ),
@@ -793,7 +810,7 @@ final class PlayerViewModel: ObservableObject {
                 valueText: isClickerEnabled ? "On" : "Off",
                 showsChevron: false,
                 previewTitle: "Wheel Clicker",
-                previewSubtitle: isClickerEnabled ? "Sound 1104 Enabled" : "Muted",
+                previewSubtitle: isClickerEnabled ? "Sound & Vibration On" : "Silent (No Vibration)",
                 action: .toggleClicker
             ),
             MenuRowItem(

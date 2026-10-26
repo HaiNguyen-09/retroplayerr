@@ -36,11 +36,11 @@ final class PlaybackEngine: ObservableObject {
         observeAudioSessionInterruptions()
     }
 
-    /// Configures AVAudioSession to .playback with .moviePlayback mode for uninterrupted lock-screen and background playback.
+    /// Configures AVAudioSession to .playback with .default mode so system click sounds (1104/1105) and haptics are never suppressed.
     func configureAudioSession() {
         let session = AVAudioSession.sharedInstance()
         do {
-            try session.setCategory(.playback, mode: .moviePlayback, options: [])
+            try session.setCategory(.playback, mode: .default, options: [])
             try session.setActive(true)
         } catch {
             // Non-fatal in simulator environments

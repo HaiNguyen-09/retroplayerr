@@ -7,70 +7,92 @@ struct ClassicPlayerRootView: View {
         let theme = viewModel.chassisTheme
 
         GeometryReader { geo in
-            ZStack {
-                // Anodized metallic faceplate background (Light, Gray, or Dark Gray)
-                LinearGradient(
-                    colors: theme.faceplateGradientColors,
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-                .animation(.easeInOut(duration: 0.2), value: theme)
+            let targetWidth = min(geo.size.width, geo.size.height * (9.0 / 16.0))
+            let targetHeight = targetWidth * (16.0 / 9.0)
+            let scaleFactor = max(0.75, targetWidth / 375.0)
+            let wheelDiameter = 240.0 * scaleFactor
+            let horizontalPadding = 22.0 * scaleFactor
 
-                // Subtle inner metallic chassis bevel border
-                RoundedRectangle(cornerRadius: 28)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: theme.chassisBorderGradientColors,
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1.5
-                    )
-                    .padding(4)
+            ZStack {
+                // 1. Outer Background (Pillarbox/Letterbox Fill):
+                // Deep dark gray #1A1A1A fills the entire device screen (.ignoresSafeArea())
+                // so the top notch / Dynamic Island and bottom Home Indicator blend naturally.
+                Color(hex: 0x1A1A1A)
                     .ignoresSafeArea()
 
-                VStack(spacing: 0) {
-                    // Top Hold Switch + Strict 4:3 LCD Container
-                    VStack(spacing: 8) {
-                        HStack {
-                            Spacer()
-                            holdSwitchControl(theme: theme)
-                        }
-                        .padding(.horizontal, 26)
-                        .padding(.top, 12)
+                // 2. Constrained 9:16 iPod Hardware Shell Container:
+                // Centered horizontally and vertically inside the device screen.
+                ZStack {
+                    // Anodized metallic faceplate background (Light, Gray, or Dark Gray)
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: theme.faceplateGradientColors,
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .animation(.easeInOut(duration: 0.2), value: theme)
 
-                        LCDDisplayView(viewModel: viewModel)
-                            .padding(.horizontal, 22)
+                    // Subtle inner metallic chassis bevel border
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: theme.chassisBorderGradientColors,
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.5
+                        )
+                        .padding(3)
+
+                    VStack(spacing: 0) {
+                        // Top Hold Switch + Strict 4:3 LCD Container scaled to the 9:16 shell width
+                        VStack(spacing: 8 * scaleFactor) {
+                            HStack {
+                                Spacer()
+                                holdSwitchControl(theme: theme)
+                            }
+                            .padding(.horizontal, horizontalPadding + 4)
+                            .padding(.top, 14 * scaleFactor)
+
+                            LCDDisplayView(viewModel: viewModel)
+                                .padding(.horizontal, horizontalPadding)
+                        }
+
+                        // Balanced vertical centering in the lower half of the 9:16 shell
+                        Spacer(minLength: 10 * scaleFactor)
+
+                        ClickWheelView(
+                            wheelDiameter: wheelDiameter,
+                            onRotateStep: { step in
+                                viewModel.handleWheelStep(direction: step)
+                            },
+                            onMenuPress: {
+                                viewModel.handleMenuButton()
+                            },
+                            onPlayPausePress: {
+                                viewModel.handlePlayPauseButton()
+                            },
+                            onPreviousPress: {
+                                viewModel.handlePreviousButton()
+                            },
+                            onNextPress: {
+                                viewModel.handleNextButton()
+                            },
+                            onCenterPress: {
+                                viewModel.handleCenterSelectButton()
+                            }
+                        )
+
+                        Spacer(minLength: 24 * scaleFactor)
                     }
-
-                    // Balanced vertical centering in the lower body so the Click Wheel isn't pushed too far down
-                    Spacer(minLength: 12)
-
-                    ClickWheelView(
-                        onRotateStep: { step in
-                            viewModel.handleWheelStep(direction: step)
-                        },
-                        onMenuPress: {
-                            viewModel.handleMenuButton()
-                        },
-                        onPlayPausePress: {
-                            viewModel.handlePlayPauseButton()
-                        },
-                        onPreviousPress: {
-                            viewModel.handlePreviousButton()
-                        },
-                        onNextPress: {
-                            viewModel.handleNextButton()
-                        },
-                        onCenterPress: {
-                            viewModel.handleCenterSelectButton()
-                        }
-                    )
-
-                    Spacer(minLength: 28)
+                    .frame(width: targetWidth, height: targetHeight)
                 }
-                .frame(width: geo.size.width, height: geo.size.height)
+                .frame(width: targetWidth, height: targetHeight)
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .shadow(color: .black.opacity(0.55), radius: 16, x: 0, y: 6)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
         }
         .ignoresSafeArea()

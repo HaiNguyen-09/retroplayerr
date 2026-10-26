@@ -1,34 +1,49 @@
 import AudioToolbox
 import UIKit
 
-@MainActor
 final class FeedbackManager {
     static let shared = FeedbackManager()
+    private let selectionFeedback = UISelectionFeedbackGenerator()
+    private let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
 
-    private let selectionGenerator = UISelectionFeedbackGenerator()
-    private let buttonGenerator = UIImpactFeedbackGenerator(style: .rigid)
-    var isClickerEnabled: Bool = true
-
-    private init() {
-        selectionGenerator.prepare()
-        buttonGenerator.prepare()
+    var isClickerEnabled: Bool {
+        get {
+            if UserDefaults.standard.object(forKey: "isClickerEnabled") == nil {
+                return true
+            }
+            return UserDefaults.standard.bool(forKey: "isClickerEnabled")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "isClickerEnabled")
+        }
     }
 
-    /// Plays iOS system sound ID 1104 (classic hardware wheel tick) coupled with UISelectionFeedbackGenerator.
+    init() {
+        selectionFeedback.prepare()
+        impactFeedback.prepare()
+    }
+
+    // Triggered on every click wheel step/tick
+    func playWheelTick() {
+        guard isClickerEnabled else { return }
+        AudioServicesPlaySystemSound(1104) // Native mechanical tick sound
+        selectionFeedback.selectionChanged()
+        selectionFeedback.prepare()
+    }
+
+    // Triggered on physical button presses (MENU, Center, Play/Pause, Rewind, Fast-Forward)
+    func playButtonPress() {
+        guard isClickerEnabled else { return }
+        AudioServicesPlaySystemSound(1105) // Crisp button tap sound
+        impactFeedback.impactOccurred()
+        impactFeedback.prepare()
+    }
+
     func triggerWheelTick() {
-        if isClickerEnabled {
-            AudioServicesPlaySystemSound(1104)
-        }
-        selectionGenerator.selectionChanged()
-        selectionGenerator.prepare()
+        playWheelTick()
     }
 
-    /// Tactile click when pressing physical wheel buttons (MENU, Center, Play/Pause, Next, Previous).
     func triggerButtonPress() {
-        if isClickerEnabled {
-            AudioServicesPlaySystemSound(1104)
-        }
-        buttonGenerator.impactOccurred(intensity: 0.85)
-        buttonGenerator.prepare()
+        playButtonPress()
     }
 }

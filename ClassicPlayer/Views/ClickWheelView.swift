@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ClickWheelView: View {
+    var wheelDiameter: CGFloat = 240.0
     let onRotateStep: (Int) -> Void
     let onMenuPress: () -> Void
     let onPlayPausePress: () -> Void
@@ -11,10 +12,17 @@ struct ClickWheelView: View {
     @AppStorage("wheelSensitivity") private var wheelSensitivityRaw: String = WheelSensitivity.deg60.rawValue
     @AppStorage("chassisTheme") private var chassisThemeRaw: String = ChassisTheme.light.rawValue
 
-    private let wheelDiameter: CGFloat = 240.0
-    private let wheelRadius: CGFloat = 120.0
-    private let centerButtonDiameter: CGFloat = 88.0
-    private let centerButtonRadius: CGFloat = 44.0
+    private var wheelRadius: CGFloat {
+        wheelDiameter / 2.0
+    }
+
+    private var centerButtonDiameter: CGFloat {
+        wheelDiameter * (88.0 / 240.0)
+    }
+
+    private var centerButtonRadius: CGFloat {
+        centerButtonDiameter / 2.0
+    }
 
     /// Active degree threshold per step — defaults to 60.0° per step.
     private var stepThresholdDegrees: Double {
@@ -168,7 +176,9 @@ struct ClickWheelView: View {
             previousAngle = atan2(startDy, startDx) * 180.0 / .pi
         }
 
-        guard isRingGestureActive, touchRadius >= 30.0 && touchRadius <= 145.0 else {
+        let minActiveRadius = wheelRadius * (30.0 / 120.0)
+        let maxActiveRadius = wheelRadius * (145.0 / 120.0)
+        guard isRingGestureActive, touchRadius >= minActiveRadius && touchRadius <= maxActiveRadius else {
             previousAngle = nil
             return
         }

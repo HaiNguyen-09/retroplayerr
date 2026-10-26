@@ -195,22 +195,22 @@ enum WheelSensitivity: String, CaseIterable, Equatable, Sendable {
     var displayName: String {
         switch self {
         case .deg60:
-            return "Standard (60°)"
+            return "Standard"
         case .deg75:
-            return "Low (75°)"
+            return "Low"
         case .deg45:
-            return "High (45°)"
+            return "High"
         }
     }
 
     var shortLabel: String {
         switch self {
         case .deg60:
-            return "60°"
+            return "Standard"
         case .deg75:
-            return "75°"
+            return "Low"
         case .deg45:
-            return "45°"
+            return "High"
         }
     }
 
