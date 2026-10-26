@@ -7,8 +7,9 @@
 ## ✨ Features
 
 ### 💿 3D Cover Flow
-- Realistic 3D Card Stack
-
+<p align="center">
+  <img src="preview/card.PNG" width="220" />
+</p>
 - **Jewel Case Flip**: Pressing the Center button flips the active album 180° around the Y-axis to reveal the tracklist on the back of the case. Selecting a track starts playback immediately.
 
 ### 🎵 Now Playing & Scrubber
@@ -16,6 +17,9 @@
 - **Skeuomorphic Aqua Scrubber**: Recessed track background with high-gloss blue cylindrical capsule fill and specular glass rod highlights.
 - **Wheel Scrubbing**: Rotate the Click Wheel clockwise to fast-forward, or counter-clockwise to rewind in 5-second increments.
 - **Center Button Cycle**: Pressing Center on Now Playing cycles Repeat mode: **Off** ➔ **Repeat Once** ➔ **Repeat Forever**.
+<p align="center">
+  <img src="preview/nowplaying.PNG" width="220" />
+</p>
 
 ### 📁 Offline Library & File Importing
 - **Zero Network Permissions**: Offline and privacy-respecting by design.
@@ -36,7 +40,9 @@
   <img src="preview/grey.PNG" width="220" />
   <img src="preview/darkgrey.PNG" width="220" />
 </p>
----
+
+## Button
+- Hold middle button for certain of time will ask user if you want to delete the file from the app.
 
 ## 🛠️ Requirements
 - iOS 16.0
