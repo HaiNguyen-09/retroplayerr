@@ -235,6 +235,25 @@ final class PlaybackEngine: ObservableObject {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
 
+    func handleDeletedTrack(_ deletedTrack: MediaItem) {
+        let deletedPath = deletedTrack.url.standardizedFileURL
+        let isDeletingCurrent = (currentItem?.id == deletedTrack.id) || (currentItem?.url.standardizedFileURL == deletedPath)
+
+        originalQueue.removeAll { $0.id == deletedTrack.id || $0.url.standardizedFileURL == deletedPath }
+        queue.removeAll { $0.id == deletedTrack.id || $0.url.standardizedFileURL == deletedPath }
+
+        if isDeletingCurrent {
+            stop()
+            queueIndex = 0
+        } else if let current = currentItem,
+                  let updatedIdx = queue.firstIndex(where: { $0.id == current.id || $0.url.standardizedFileURL == current.url.standardizedFileURL }) {
+            queueIndex = updatedIdx
+            updateNowPlayingMetadata()
+        } else {
+            queueIndex = queue.isEmpty ? 0 : min(queueIndex, queue.count - 1)
+        }
+    }
+
     func nextTrack() {
         guard !queue.isEmpty else { return }
         if queueIndex + 1 < queue.count {

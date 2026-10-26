@@ -82,6 +82,9 @@ struct ClassicPlayerRootView: View {
                             },
                             onCenterPress: {
                                 viewModel.handleCenterSelectButton()
+                            },
+                            onCenterLongPress: {
+                                viewModel.handleCenterLongPress()
                             }
                         )
 

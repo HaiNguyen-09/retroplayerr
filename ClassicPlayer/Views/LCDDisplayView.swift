@@ -111,7 +111,18 @@ struct LCDDisplayView: View {
                         )
                     }
                 }
+
+                // Classic skeuomorphic Delete Song confirmation modal overlay
+                if let pendingTrack = viewModel.pendingDeleteTrack {
+                    DeleteConfirmationModalView(
+                        trackTitle: pendingTrack.title,
+                        selectedOption: viewModel.deleteModalSelectedOption
+                    )
+                    .zIndex(10)
+                    .transition(.opacity)
+                }
             }
+            .animation(.easeInOut(duration: 0.16), value: viewModel.pendingDeleteTrack?.id)
             .clipShape(RoundedRectangle(cornerRadius: 4.0))
             .overlay(
                 // Subtle 1px inner drop shadow along the top & edges so the white LCD panel feels physically recessed

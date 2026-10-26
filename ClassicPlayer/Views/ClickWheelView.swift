@@ -8,6 +8,7 @@ struct ClickWheelView: View {
     let onPreviousPress: () -> Void
     let onNextPress: () -> Void
     let onCenterPress: () -> Void
+    var onCenterLongPress: () -> Void = {}
 
     @AppStorage("wheelSensitivity") private var wheelSensitivityRaw: String = WheelSensitivity.deg60.rawValue
     @AppStorage("chassisTheme") private var chassisThemeRaw: String = ChassisTheme.light.rawValue
@@ -37,6 +38,8 @@ struct ClickWheelView: View {
     @State private var accumulatedDegrees: Double = 0.0
     @State private var isRingGestureActive: Bool = false
     @State private var didTriggerRotation: Bool = false
+    @State private var didTriggerCenterLongPress: Bool = false
+    @State private var centerLongPressTask: Task<Void, Never>?
     @State private var pressedZone: WheelZone?
 
     private enum WheelZone {
@@ -165,7 +168,25 @@ struct ClickWheelView: View {
             let startRadius = hypot(startDx, startDy)
 
             if pressedZone == nil {
-                pressedZone = detectZone(dx: startDx, dy: startDy, radius: startRadius)
+                let detected = detectZone(dx: startDx, dy: startDy, radius: startRadius)
+                pressedZone = detected
+                if detected == .center && !didTriggerCenterLongPress && centerLongPressTask == nil {
+                    centerLongPressTask = Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 1_500_000_000)
+                        guard !Task.isCancelled, pressedZone == .center, !didTriggerRotation else { return }
+                        didTriggerCenterLongPress = true
+                        onCenterLongPress()
+                    }
+                }
+            }
+
+            if pressedZone == .center {
+                let dragDist = hypot(value.translation.width, value.translation.height)
+                if touchRadius >= centerButtonRadius || dragDist >= 18.0 {
+                    centerLongPressTask?.cancel()
+                    centerLongPressTask = nil
+                    pressedZone = nil
+                }
             }
 
             guard startRadius >= centerButtonRadius && startRadius <= wheelRadius else {
@@ -223,15 +244,19 @@ struct ClickWheelView: View {
     }
 
     private func handleTouchEnded(_ value: DragGesture.Value) {
+        let wasLongPress = didTriggerCenterLongPress
         defer {
+            centerLongPressTask?.cancel()
+            centerLongPressTask = nil
             previousAngle = nil
             accumulatedDegrees = 0.0
             isRingGestureActive = false
             didTriggerRotation = false
+            didTriggerCenterLongPress = false
             pressedZone = nil
         }
 
-        guard !didTriggerRotation else { return }
+        guard !didTriggerRotation, !wasLongPress else { return }
 
         let dragDistance = hypot(value.translation.width, value.translation.height)
         guard dragDistance < 18.0 else { return }

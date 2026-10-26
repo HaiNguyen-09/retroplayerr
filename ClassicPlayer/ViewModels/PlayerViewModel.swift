@@ -20,6 +20,10 @@ final class PlayerViewModel: ObservableObject {
     @Published var isCoverFlowFlipped: Bool = false
     @Published var coverFlowTrackIndex: Int = 0
 
+    // Delete Track Confirmation Modal state
+    @Published var pendingDeleteTrack: MediaItem? = nil
+    @Published var deleteModalSelectedOption: DeleteModalOption = .delete
+
     @AppStorage("isClickerEnabled") var isClickerEnabled: Bool = true {
         didSet {
             FeedbackManager.shared.isClickerEnabled = isClickerEnabled
@@ -224,6 +228,16 @@ final class PlayerViewModel: ObservableObject {
     func handleWheelStep(direction: Int) {
         guard !isHoldLocked, direction != 0 else { return }
 
+        // If the Delete Confirmation Modal is open, rotate wheel between Delete (0) and Cancel (1)
+        if pendingDeleteTrack != nil {
+            let nextOption: DeleteModalOption = direction > 0 ? .cancel : .delete
+            if nextOption != deleteModalSelectedOption {
+                deleteModalSelectedOption = nextOption
+                FeedbackManager.shared.playWheelTick()
+            }
+            return
+        }
+
         switch screenMode {
         case .splitBrowser:
             guard !menuStack.isEmpty else { return }
@@ -272,6 +286,12 @@ final class PlayerViewModel: ObservableObject {
         guard !isHoldLocked else { return }
         FeedbackManager.shared.playButtonPress()
 
+        // If the Delete Confirmation Modal is open, MENU safely dismisses it (Cancel)
+        if pendingDeleteTrack != nil {
+            pendingDeleteTrack = nil
+            return
+        }
+
         if screenMode == .coverFlow {
             if isCoverFlowFlipped {
                 // Flip jewel case back to front cover
@@ -299,6 +319,16 @@ final class PlayerViewModel: ObservableObject {
     func handleCenterSelectButton() {
         guard !isHoldLocked else { return }
         FeedbackManager.shared.playButtonPress()
+
+        // If the Delete Confirmation Modal is open, Center confirms Delete or Cancel
+        if pendingDeleteTrack != nil {
+            if deleteModalSelectedOption == .delete {
+                confirmDeleteTrack()
+            } else {
+                pendingDeleteTrack = nil
+            }
+            return
+        }
 
         switch screenMode {
         case .splitBrowser:
@@ -328,6 +358,74 @@ final class PlayerViewModel: ObservableObject {
         case .audioNowPlaying, .videoFullCanvas:
             playbackEngine.cycleRepeatMode()
         }
+    }
+
+    func handleCenterLongPress() {
+        guard !isHoldLocked, pendingDeleteTrack == nil else { return }
+
+        var targetTrack: MediaItem?
+        switch screenMode {
+        case .splitBrowser:
+            if let row = currentPage.selectedRow,
+               case .playQueue(let items, let startIndex) = row.action,
+               items.indices.contains(startIndex) {
+                targetTrack = items[startIndex]
+            }
+
+        case .coverFlow:
+            let albums = coverFlowAlbums
+            if albums.indices.contains(coverFlowSelectedIndex) {
+                let tracks = albums[coverFlowSelectedIndex].tracks
+                if isCoverFlowFlipped && tracks.indices.contains(coverFlowTrackIndex) {
+                    targetTrack = tracks[coverFlowTrackIndex]
+                } else {
+                    targetTrack = tracks.first
+                }
+            }
+
+        case .audioNowPlaying, .videoFullCanvas:
+            targetTrack = playbackEngine.currentItem
+        }
+
+        guard let trackToDelete = targetTrack else { return }
+        FeedbackManager.shared.playButtonPress()
+        deleteModalSelectedOption = .delete
+        pendingDeleteTrack = trackToDelete
+    }
+
+    func confirmDeleteTrack() {
+        guard let track = pendingDeleteTrack else { return }
+        let fileURL = track.url
+
+        // 1. Permanently remove the media file from disk
+        try? FileManager.default.removeItem(at: fileURL)
+
+        // 2. Stop playback immediately if deleting the active song and re-index the playback queue
+        playbackEngine.handleDeletedTrack(track)
+
+        // 3. Remove from library and re-index current menus / Cover Flow
+        let standardized = fileURL.standardizedFileURL
+        allMedia.removeAll { $0.id == track.id || $0.url.standardizedFileURL == standardized }
+
+        let updatedAlbums = coverFlowAlbums
+        if updatedAlbums.isEmpty {
+            coverFlowSelectedIndex = 0
+            coverFlowTrackIndex = 0
+            isCoverFlowFlipped = false
+        } else {
+            coverFlowSelectedIndex = min(coverFlowSelectedIndex, updatedAlbums.count - 1)
+            let tracks = updatedAlbums[coverFlowSelectedIndex].tracks
+            coverFlowTrackIndex = tracks.isEmpty ? 0 : min(coverFlowTrackIndex, tracks.count - 1)
+        }
+
+        if (screenMode == .audioNowPlaying || screenMode == .videoFullCanvas) && playbackEngine.currentItem == nil {
+            screenMode = .splitBrowser
+        }
+
+        buildMenuStackPreservingSelection()
+
+        // 4. Dismiss modal and restore wheel focus to the track list
+        pendingDeleteTrack = nil
     }
 
     func handlePlayPauseButton() {
@@ -487,7 +585,13 @@ final class PlayerViewModel: ObservableObject {
             case "Documents":
                 menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeDocumentsMenuRows(), selectedIndex: selected)
             default:
-                break
+                if idx >= 2 && menuStack[idx - 1].title == "Artists" {
+                    let artistTracks = audioItems.filter { $0.artist == pageTitle }
+                    menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeMediaRows(for: artistTracks, emptyLabel: "No Songs"), selectedIndex: selected)
+                } else if idx >= 2 && menuStack[idx - 1].title == "Albums" {
+                    let albumTracks = audioItems.filter { $0.album == pageTitle }
+                    menuStack[idx] = MenuPage(id: pageId, title: pageTitle, rows: makeMediaRows(for: albumTracks, emptyLabel: "No Songs"), selectedIndex: selected)
+                }
             }
         }
     }
@@ -803,7 +907,7 @@ final class PlayerViewModel: ObservableObject {
                 valueText: isClickerEnabled ? "On" : "Off",
                 showsChevron: false,
                 previewTitle: "Wheel Clicker",
-                previewSubtitle: isClickerEnabled ? "Sound & Vibration On" : "Silent (No Vibration)",
+                previewSubtitle: isClickerEnabled ? "Vibration On" : "Vibration Off",
                 action: .toggleClicker
             ),
             MenuRowItem(
